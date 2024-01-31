@@ -25,12 +25,12 @@
   <body>
     <div id="container">
     <h1>Welcome to Jami</h1>
-    <h2>Here are the French words you heard today while listening to music:</h2>
-    <p> [INSERT DYNAMIC List of words and songs]</p>
-    <h2>Let's see how often you heard these words today:</h2>
-    <p>[INSERT DYNAMIC Histogram]</p>
-    <h2>Let's learn what each word means:</h2>
-    <p>[INSERT DYNAMIC List meaning, form, and phonemes for each word]</p>
+    <h2>Here are the common French words you heard today while listening to music:</h2>
+      <div>        
+        {% for word in words %}
+        <div>{{word['word']}}</div>
+      {% endfor %}
+      </div>
       </div>
   </body>
 </html>
