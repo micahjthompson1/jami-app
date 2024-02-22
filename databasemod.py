@@ -2,6 +2,18 @@ from sqlalchemy import create_engine, text
 import os
 import requests
 
+# Your existing code for database connection and querying
+db_connection_string = os.environ['DB_CONNECTION_STRING']
+
+engine = create_engine(
+    db_connection_string,
+    connect_args={
+        "ssl": {
+            "ssl_ca": "/etc/ssl/cert.pem"
+        }
+    }
+)
+
 # Function to fetch recent tracks from Apple Music API
 def fetch_recent_tracks(access_token):
     url = "https://api.music.apple.com/v1/me/recent/played/tracks"
@@ -16,7 +28,7 @@ def fetch_recent_tracks(access_token):
         print("Failed to fetch recent tracks:", response.text)
         return None
 
-# Extract IDs from the JSON response
+# Function to extract IDs from the JSON response
 def load_words_from_db(json_response):
   ids = [song['id'] for song in json_response['data']]
 
@@ -38,18 +50,6 @@ def load_words_from_db(json_response):
 json_response = { ... }  # Your JSON response here
 words = load_words_from_db(json_response)
 print(words)
-
-# Your existing code for database connection and querying
-db_connection_string = os.environ['DB_CONNECTION_STRING']
-
-engine = create_engine(
-    db_connection_string,
-    connect_args={
-        "ssl": {
-            "ssl_ca": "/etc/ssl/cert.pem"
-        }
-    }
-)
 
 # Example usage
 if __name__ == "__main__":
