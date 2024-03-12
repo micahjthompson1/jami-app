@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, text
 import os
 import requests
 
-# Your existing code for database connection and querying
+# Existing code for database connection and querying
 db_connection_string = os.environ['DB_CONNECTION_STRING']
 
 engine = create_engine(
@@ -15,10 +15,10 @@ engine = create_engine(
 )
 
 # Function to fetch recent tracks from Apple Music API
-def fetch_recent_tracks(access_token):
+def fetch_recent_tracks(developer_token):
     url = "https://api.music.apple.com/v1/me/recent/played/tracks"
     headers = {
-        "Authorization": f"Bearer {access_token}",
+        "Authorization": f"Bearer {developer_token}",
         "Content-Type": "application/json"
     }
     response = requests.get(url, headers=headers)
@@ -53,8 +53,8 @@ print(words)
 
 # Example usage
 if __name__ == "__main__":
-    access_token = "YOUR_ACCESS_TOKEN"  # Replace with your access token
-    recent_tracks_response = fetch_recent_tracks(access_token)
+    developer_token = os.environ['developer_token']
+    recent_tracks_response = fetch_recent_tracks(developer_token)
     if recent_tracks_response:
         words = load_words_from_db(recent_tracks_response)
         print(words)

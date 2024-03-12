@@ -16,6 +16,6 @@ payload = {
 # Sign the token using jwt.encode()
 my_secret = os.environ['private_key']
 private_key = f"-----BEGIN PRIVATE KEY-----\n{my_secret}\n-----END PRIVATE KEY-----"
-token = jwt.encode(payload, private_key, algorithm='ES256', headers=headers)
+developer_token = jwt.encode(payload, private_key, algorithm='ES256', headers=headers)
 
-print(token)
+print(developer_token)
