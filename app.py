@@ -6,7 +6,7 @@ app = Flask(__name__)
 @app.route('/')
 def index():
     # Get the developer token from environment variables
-    dev_token = os.environ.get('apple_dev_token')
+    dev_token = os.environ['apple_dev_token']
     # Pass the developer token to the template
     return render_template('index.html', dev_token=dev_token)
 
