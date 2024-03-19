@@ -11,7 +11,7 @@
   async function fetchRecentlyPlayed() {
     const music = MusicKit.getInstance();
     await music.authorize();
-    const { data: result } = await music.api.music('v1/me/recent/played/tracks');
+    const { data: result } = await music.api.music('v1/catalog/us/albums/1616728060');
 
     // Get the container element where you want to display the data
     const container = document.getElementById('recently-played');
