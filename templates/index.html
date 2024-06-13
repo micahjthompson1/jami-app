@@ -42,19 +42,29 @@
     });
 
     // Authorize and Fetch Data
-    async function fetchRecentlyPlayed() {
+    async function fetchRecentlyPlayedTracks() {
       const music = MusicKit.getInstance();
       await music.authorize();
-      const result = await music.api.recentPlayed();
+      const result = await music.api.library.recentlyPlayedTracks();
 
       // Get the container element where you want to display the data
       const container = document.getElementById('recently-played');
 
       // Clear previous content
       container.innerHTML = '';
+
+      // Iterate over the fetched data and create elements for each item
+      result.forEach(track => {
+        // Create a new div element for each track
+        const trackDiv = document.createElement('div');
+        trackDiv.textContent = track.attributes.name; 
+
+        // Append the new div to the container
+        container.appendChild(trackDiv);
+      });
     }
 
-    fetchRecentlyPlayed();
+    fetchRecentlyPlayedTracks();
   </script>
     
   </body>
