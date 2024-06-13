@@ -52,6 +52,16 @@
 
       // Clear previous content
       container.innerHTML = '';
+
+      // Iterate over the fetched data and create elements for each item
+      result.forEach(track => {
+        // Create a new div element for each track
+        const trackDiv = document.createElement('div');
+        trackDiv.textContent = track.attributes.name; 
+
+        // Append the new div to the container
+        container.appendChild(trackDiv);
+      });
     }
 
     fetchRecentlyPlayed();
