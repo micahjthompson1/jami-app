@@ -45,7 +45,14 @@
     async function fetchRecentlyPlayed() {
       const music = MusicKit.getInstance();
       await music.authorize();
-      const result = await music.api.recentPlayed();
+
+      // Specify the query parameters to fetch only songs/tracks
+      const queryParameters = {
+        types: ['songs'], // Fetch only songs
+        limit: 25, // Limit the number of results (optional)
+      };
+
+      const result = await music.api.recentPlayed(queryParameters); [6]
 
       // Get the container element where you want to display the data
       const container = document.getElementById('recently-played');
