@@ -52,7 +52,7 @@
         limit: 25, // Limit the number of results (optional)
       };
 
-      const result = await music.api.recentPlayed(queryParameters); [6]
+      const result = await music.api.recentPlayed(queryParameters);
 
       // Get the container element where you want to display the data
       const container = document.getElementById('recently-played');
@@ -60,15 +60,21 @@
       // Clear previous content
       container.innerHTML = '';
 
-      // Iterate over the fetched data and create elements for each item
-      result.forEach(track => {
-        // Create a new div element for each track
-        const trackDiv = document.createElement('div');
-        trackDiv.textContent = track.attributes.name; 
+      // Create a pre element to display the raw JSON
+      const preElement = document.createElement('pre');
 
-        // Append the new div to the container
-        container.appendChild(trackDiv);
-      });
+      // Convert the result to a formatted JSON string
+      const formattedJSON = JSON.stringify(result, null, 2);
+
+      // Set the text content of the pre element to the formatted JSON
+      preElement.textContent = formattedJSON;
+
+      // Append the pre element to the container
+      container.appendChild(preElement);
+
+      // Optionally, you can add syntax highlighting
+      // If you're using a library like highlight.js, you can add:
+      // hljs.highlightElement(preElement);
     }
 
     fetchRecentlyPlayed();
