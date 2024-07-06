@@ -9,8 +9,9 @@
     <div id="result"></div>
 
     <script>
-        document.addEventListener('musickitloaded', function() {
-            // Configure MusicKit
+      document.addEventListener('musickitloaded', function() {
+          console.log('MusicKit has loaded');
+          // Configure MusicKit
           MusicKit.configure({
             developerToken: "{{ dev_token }}",
             app: {
