@@ -9,37 +9,25 @@
     <div id="result"></div>
 
     <script>
-      document.addEventListener('musickitloaded', function() {
-          console.log('MusicKit has loaded');
-          // Configure MusicKit
-          MusicKit.configure({
-            developerToken: "{{ dev_token }}",
-            app: {
-              name: 'WordNab',
-              build: '2024.1.00',
-            },
-          });
+      // Configure MusicKit with the developer token passed from Flask
+      MusicKit.configure({
+        developerToken: "{{ dev_token }}",
+        app: {
+          name: 'WordNab',
+          build: '2024.1.00',
+        },
+      });
 
-            const music = MusicKit.getInstance();
-
-            // Handle authorization
-            document.getElementById('authorize').addEventListener('click', function() {
-                music.authorize().then(function() {
-                    fetchRecentlyPlayed();
-                });
-            });
-        });
-
-        async function fetchRecentlyPlayed() {
-            const music = MusicKit.getInstance();
-            const userToken = music.musicUserToken;
+      // Authorize and Fetch Data
+      async function fetchRecentlyPlayed() {
+        const music = MusicKit.getInstance();
+        await music.authorize();
 
             try {
                 const response = await fetch('https://api.music.apple.com/v1/me/recent/played/tracks', {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${music.developerToken}`,
-                        'Music-User-Token': userToken
+                        'Authorization': `Bearer ${music.developerToken}`
                     }
                 });
 
