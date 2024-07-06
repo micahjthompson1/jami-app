@@ -1,12 +1,35 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Apple Music API Example</title>
+  <head>
+    <title>WordNab</title>
     <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
-</head>
-<body>
-    <button id="authorize">Authorize</button>
-    <div id="result"></div>
+    <style>
+      h1 {
+        font-size: 40px;
+        font-family: Roboto;
+        font-weight: normal;
+        color: rgb(100, 100, 100);
+        text-align: center;
+      }
+      h2 {
+        font-size: 20px;
+        font-family: Roboto;
+      }
+
+      #container{
+        max-width: 720px;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <h1>Welcome to WordNab</h1>
+      <h2>Here are the common French words you heard today while listening to music:</h2>
+      <div id="recently-played">
+        <!-- Fetched data will be inserted here -->
+      </div>
+    </div>
 
     <script>
       // Configure MusicKit with the developer token passed from Flask
@@ -23,24 +46,29 @@
         const music = MusicKit.getInstance();
         await music.authorize();
 
-            try {
-                const response = await fetch('https://api.music.apple.com/v1/me/recent/played/tracks', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${music.developerToken}`
-                    }
-                });
+        const result = await music.api.recentPlayed();
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+        // Get the container element where you want to display the data
+        const container = document.getElementById('recently-played');
 
-                const data = await response.json();
-                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }
+        // Clear previous content
+        container.innerHTML = '';
+
+        // Create a pre element to display the raw JSON
+        const preElement = document.createElement('pre');
+
+        // Convert the result to a formatted JSON string
+        const formattedJSON = JSON.stringify(result, null, 2);
+
+        // Set the text content of the pre element to the formatted JSON
+        preElement.textContent = formattedJSON;
+
+        // Append the pre element to the container
+        container.appendChild(preElement);
+      }
+
+      fetchRecentlyPlayed();
+
     </script>
 </body>
 </html>
