@@ -2,7 +2,6 @@
 <html>
   <head>
     <title>WordNab</title>
-    <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
     <style>
       h1 {
         font-size: 40px;
@@ -16,7 +15,7 @@
         font-family: Roboto;
       }
 
-      #container{
+      #container {
         max-width: 720px;
         margin: 0 auto;
       }
@@ -25,54 +24,65 @@
   <body>
     <div id="container">
       <h1>Welcome to WordNab</h1>
-      <h2>Here are your recently played tracks with ISRC codes:</h2>
+      <h2>Here are the common French words you heard today while listening to music:</h2>
       <div id="recently-played">
         <!-- Fetched data will be inserted here -->
       </div>
     </div>
     
-  <script>
-    // Configure MusicKit with the developer token passed from Flask
-    MusicKit.configure({
-      developerToken: "{{ dev_token }}",
-      app: {
-        name: 'WordNab',
-        build: '2024.1.00',
-      },
-    });
+    <script>
+      const clientId = '74fd0dba781e434dad39a8494e5426b9';
+      const redirectUri = 'https://jami-app.onrender.com/';
+      const scopes = 'user-read-recently-played';
 
-    // Authorize and Fetch Data
-    async function fetchRecentlyPlayed() {
-      const music = MusicKit.getInstance();
-      await music.authorize();
-      const result = await music.api.recentPlayed();
+      function getSpotifyAuthUrl() {
+        const url = 'https://accounts.spotify.com/authorize';
+        const params = new URLSearchParams({
+          client_id: clientId,
+          response_type: 'token',
+          redirect_uri: redirectUri,
+          scope: scopes,
+        });
+        return `${url}?${params.toString()}`;
+      }
 
-      // Get the container element where you want to display the data
-      const container = document.getElementById('recently-played');
+      function getAccessTokenFromUrl() {
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        return params.get('access_token');
+      }
 
-      // Clear previous content
-      container.innerHTML = '';
+      async function fetchRecentlyPlayed(accessToken) {
+        const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+        const data = await response.json();
+        return data.items;
+      }
 
-      // Fetch full details for each track to get ISRC
-      const trackDetails = await Promise.all(
-        result.map(track => 
-          music.api.song(track.id, { include: 'isrc' })
-        )
-      );
+      function displayTracks(tracks) {
+        const container = document.getElementById('recently-played');
+        container.innerHTML = '';
+        tracks.forEach(item => {
+          const trackDiv = document.createElement('div');
+          trackDiv.textContent = item.track.name;
+          container.appendChild(trackDiv);
+        });
+      }
 
-      // Iterate over the fetched data and create elements for each item
-      trackDetails.forEach(track => {
-        // Create a new div element for each track
-        const trackDiv = document.createElement('div');
-        trackDiv.textContent = `${track.attributes.name} - ${track.attributes.artistName} (ISRC: ${track.attributes.isrc || 'N/A'})`;
+      async function main() {
+        let accessToken = getAccessTokenFromUrl();
+        if (!accessToken) {
+          window.location.href = getSpotifyAuthUrl();
+        } else {
+          const tracks = await fetchRecentlyPlayed(accessToken);
+          displayTracks(tracks);
+        }
+      }
 
-        // Append the new div to the container
-        container.appendChild(trackDiv);
-      });
-    }
-
-    fetchRecentlyPlayed();
-  </script>
-    
+      main();
+    </script>
   </body>
 </html>
