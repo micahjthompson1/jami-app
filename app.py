@@ -16,6 +16,7 @@ class Base(db.Model):
     isrc = db.Column(db.String)
     word = db.Column(db.String)
     count = db.Column(db.Integer)
+    id = db.Column(db.Integer, primary_key=True)
 
 @app.route('/')
 def index():
