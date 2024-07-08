@@ -1,14 +1,43 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
 import os
 
 app = Flask(__name__)
 
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# Define your database model
+class Base(db.Model):
+    __tablename__ = 'base_w_isrc'
+    song_id = db.Column(db.String)
+    isrc = db.Column(db.String)
+    word = db.Column(db.String)
+    count = db.Column(db.Integer)
+
 @app.route('/')
 def index():
-    # Get the developer token from environment variables
     dev_token = os.environ.get('apple_dev_token')
-    # Pass the developer token to the template
     return render_template('index.html', dev_token=dev_token)
+
+@app.route('/api/words', methods=['POST'])
+def get_words():
+    isrc_codes = request.json.get('isrcCodes', [])
+
+    # Query the database
+    query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count')).\
+        filter(Base.isrc.in_(isrc_codes)).\
+        group_by(Base.word).\
+        order_by(db.desc('total_count'))
+
+    results = query.all()
+
+    # Format the results
+    words = [{'word': row.word, 'total_count': int(row.total_count)} for row in results]
+
+    return jsonify(words)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

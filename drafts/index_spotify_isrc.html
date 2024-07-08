@@ -24,7 +24,7 @@
   <body>
     <div id="container">
       <h1>Welcome to WordNab</h1>
-      <h2>Here are the common French words you heard today while listening to music:</h2>
+      <h2>Here are the ISRC codes of your recently played tracks:</h2>
       <div id="recently-played">
         <!-- Fetched data will be inserted here -->
       </div>
@@ -72,43 +72,15 @@
         return data;
       }
 
-      async function fetchWordsFromDatabase(isrcCodes) {
-        const response = await fetch('/api/words', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ isrcCodes }),
-        });
-        return await response.json();
-      }
-
-      async function displayTracksAndWords(tracks, accessToken) {
+      async function displayTracksWithISRC(tracks, accessToken) {
         const container = document.getElementById('recently-played');
         container.innerHTML = '';
-
-        const isrcCodes = [];
         for (const item of tracks) {
           const trackDetails = await fetchTrackDetails(item.track.id, accessToken);
-          const isrc = trackDetails.external_ids.isrc;
-          if (isrc) {
-            isrcCodes.push(isrc);
-          }
+          const isrc = trackDetails.external_ids.isrc || 'N/A';
           const trackDiv = document.createElement('div');
-          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name} (ISRC: ${isrc || 'N/A'})`;
+          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name} (ISRC: ${isrc})`;
           container.appendChild(trackDiv);
-        }
-
-        if (isrcCodes.length > 0) {
-          const words = await fetchWordsFromDatabase(isrcCodes);
-          const wordsDiv = document.createElement('div');
-          wordsDiv.innerHTML = '<h3>Common French Words:</h3>';
-          words.forEach(word => {
-            const wordP = document.createElement('p');
-            wordP.textContent = `${word.word}: ${word.total_count}`;
-            wordsDiv.appendChild(wordP);
-          });
-          container.appendChild(wordsDiv);
         }
       }
 
@@ -118,7 +90,7 @@
           window.location.href = getSpotifyAuthUrl();
         } else {
           const tracks = await fetchRecentlyPlayed(accessToken);
-          await displayTracksAndWords(tracks, accessToken);
+          await displayTracksWithISRC(tracks, accessToken);
         }
       }
 
