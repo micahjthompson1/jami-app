@@ -1,12 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import os
-import logging
 
 app = Flask(__name__)
-
-# Set up logging
-logging.basicConfig(filename='error.log', level=logging.ERROR)
 
 # Database configuration with SSL
 base_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -30,15 +26,22 @@ def index():
     dev_token = os.environ.get('apple_dev_token')
     return render_template('index.html', dev_token=dev_token)
 
-# Changed logic for debugging
 @app.route('/api/words', methods=['POST'])
-def fetch_words():
-    try:
-        # Your logic to handle the request
-        pass
-    except Exception as e:
-        app.logger.error(f"Error occurred: {e}")
-        return {"error": "Internal Server Error"}, 500
+def get_words():
+    isrc_codes = request.json.get('isrcCodes', [])
+
+    # Query the database
+    query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count')).\
+        filter(Base.isrc.in_(isrc_codes)).\
+        group_by(Base.word).\
+        order_by(db.desc('total_count'))
+
+    results = query.all()
+
+    # Format the results
+    words = [{'word': row.word, 'total_count': int(row.total_count)} for row in results]
+
+    return jsonify(words)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
