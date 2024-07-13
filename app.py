@@ -28,7 +28,7 @@ def index():
 
 @app.route('/api/words', methods=['POST'])
 def get_words():
-    isrc_codes = request.json.get('isrcCodes', [])
+    isrc_codes = request.get_json('isrcCodes', [])
 
     # Query the database
     query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count')).\

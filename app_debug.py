@@ -32,13 +32,26 @@ def index():
 
 # Changed logic for debugging
 @app.route('/api/words', methods=['POST'])
-def fetch_words():
+def get_words():
     try:
-        # Your logic to handle the request
-        pass
+        isrc_codes = request.get_json('isrcCodes', [])
+
+        # Query the database
+        query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count'))\
+            .filter(Base.isrc.in_(isrc_codes))\
+            .group_by(Base.word)\
+            .order_by(db.desc('total_count'))
+
+        results = query.all()
+
+        # Format the results
+        words = [{'word': row.word, 'total_count': int(row.total_count)} for row in results]
+
+        return jsonify(words)
+
     except Exception as e:
         app.logger.error(f"Error occurred: {e}")
-        return {"error": "Internal Server Error"}, 500
+        return jsonify({"error": "Internal Server Error"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
