@@ -35,31 +35,31 @@ def get_words():
     try:
         data = request.get_json()
         app.logger.info(f"Received data: {data}")
-        isrc_codes = data.get('isrcCodes', [])
+        if data is None:
+            raise ValueError("No JSON data received")
 
-        # Validate isrc_codes
-        if not isinstance(isrc_codes, list):
-            return jsonify({"error": "Invalid input: isrcCodes must be a list"}), 400
+        isrc_codes = data.get('isrcCodes', [])
+        if not isrc_codes:
+            raise ValueError("No ISRC codes provided")
 
         # Query the database
-        query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count'))\
-            .filter(Base.isrc.in_(isrc_codes))\
-            .group_by(Base.word)\
-            .order_by(db.desc('total_count'))
+        query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count')).\
+            filter(Base.isrc.in_(isrc_codes)).\
+            group_by(Base.word).\
+            order_by(db.desc('total_count'))
 
         results = query.all()
-
-        # Close the session after the query
-        db.session.close()
 
         # Format the results
         words = [{'word': row.word, 'total_count': int(row.total_count)} for row in results]
 
         return jsonify(words)
-
+    except ValueError as ve:
+        app.logger.error(f"ValueError: {ve}")
+        return jsonify({"error": str(ve)}), 400
     except Exception as e:
         app.logger.error(f"Error occurred: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
-
+        
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
