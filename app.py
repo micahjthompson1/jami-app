@@ -14,7 +14,7 @@ db = SQLAlchemy(app)
 
 # Define your database model
 class Base(db.Model):
-    __tablename__ = 'base_w_isrc'
+    __tablename__ = 'base_w_spotify_id'
     song_id = db.Column(db.String)
     spotify_track_id = db.Column(db.String)
     word = db.Column(db.String)
