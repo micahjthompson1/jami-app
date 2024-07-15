@@ -72,35 +72,41 @@
         return data;
       }
 
-      async function fetchWordsFromDatabase(isrcCodes) {
-        const response = await fetch('/api/words', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ isrcCodes }),
-        });
-        return await response.json();
+      async function fetchWordsFromDatabase(trackIds) {
+        console.log('Sending track IDs:', trackIds);
+        try {
+          const response = await fetch('/api/words', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ trackIds }),
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return await response.json();
+        } catch (error) {
+          console.error('Error fetching words from database:', error);
+          throw error;
+        }
       }
 
       async function displayTracksAndWords(tracks, accessToken) {
         const container = document.getElementById('recently-played');
         container.innerHTML = '';
 
-        const isrcCodes = [];
+        const trackIds = [];
         for (const item of tracks) {
-          const trackDetails = await fetchTrackDetails(item.track.id, accessToken);
-          const isrc = trackDetails.external_ids.isrc;
-          if (isrc) {
-            isrcCodes.push(isrc);
-          }
+          const trackId = item.track.id;
+          trackIds.push(trackId);
           const trackDiv = document.createElement('div');
-          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name} (ISRC: ${isrc || 'N/A'})`;
+          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name} (Track ID: ${trackId})`;
           container.appendChild(trackDiv);
         }
 
-        if (isrcCodes.length > 0) {
-          const words = await fetchWordsFromDatabase(isrcCodes);
+        if (trackIds.length > 0) {
+          const words = await fetchWordsFromDatabase(trackIds);
           const wordsDiv = document.createElement('div');
           wordsDiv.innerHTML = '<h3>Common French Words:</h3>';
           words.forEach(word => {
