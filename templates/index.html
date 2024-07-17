@@ -73,11 +73,62 @@
       }
 
       async function fetchWordsFromDatabase(trackIds) {
-          const response = await fetch('/test', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => console.log(data))
-            .catch(error => console.error('Error:', error));
+        console.log('Sending track IDs:', trackIds);
+        try {
+          const response = await fetch('/api/words', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ trackIds }),
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return await response.json();
+        } catch (error) {
+          console.error('Error fetching words from database:', error);
+          throw error;
+        }
       }
+
+      async function displayTracksAndWords(tracks, accessToken) {
+        const container = document.getElementById('recently-played');
+        container.innerHTML = '';
+
+        const trackIds = [];
+        for (const item of tracks) {
+          const trackId = item.track.id;
+          trackIds.push(trackId);
+          const trackDiv = document.createElement('div');
+          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name} (Track ID: ${trackId})`;
+          container.appendChild(trackDiv);
+        }
+
+        if (trackIds.length > 0) {
+          const words = await fetchWordsFromDatabase(trackIds);
+          const wordsDiv = document.createElement('div');
+          wordsDiv.innerHTML = '<h3>Common French Words:</h3>';
+          words.forEach(word => {
+            const wordP = document.createElement('p');
+            wordP.textContent = `${word.word}: ${word.total_count}`;
+            wordsDiv.appendChild(wordP);
+          });
+          container.appendChild(wordsDiv);
+        }
+      }
+
+      async function main() {
+        let accessToken = getAccessTokenFromUrl();
+        if (!accessToken) {
+          window.location.href = getSpotifyAuthUrl();
+        } else {
+          const tracks = await fetchRecentlyPlayed(accessToken);
+          await displayTracksAndWords(tracks, accessToken);
+        }
+      }
+
+      main();
     </script>
   </body>
 </html>
