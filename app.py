@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import os
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 # Database configuration with SSL
 base_connection_string = os.environ.get('DB_CONNECTION_STRING')
