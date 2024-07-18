@@ -4,4 +4,4 @@ sqlalchemy
 pymysql
 Flask-SQLAlchemy
 flask_cors
-mysql
+mysql-connector-python
