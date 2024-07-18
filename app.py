@@ -39,18 +39,8 @@ def get_words():
         if not track_ids:
             raise ValueError("No track IDs provided")
 
-        # Query the database
-        query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count')).\
-            filter(Base.spotify_track_id.in_(track_ids)).\
-            group_by(Base.word).\
-            order_by(db.desc('total_count'))
-
-        results = query.all()
-
-        # Format the results
-        words = [{'word': row.word, 'total_count': int(row.total_count)} for row in results]
-
-        return jsonify(words)
+        return jsonify(track_ids)
+        
     except ValueError as ve:
         app.logger.error(f"ValueError: {ve}")
         return jsonify({"error": str(ve)}), 400
