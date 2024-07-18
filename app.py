@@ -9,7 +9,7 @@ CORS(app)
 
 # Database configuration with SSL
 base_connection_string = os.environ.get('DB_CONNECTION_STRING')
-ssl_config = "?ssl_ca=/etc/ssl/cert.pem"
+ssl_config = "&ssl_ca=/etc/ssl/cert.pem"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = base_connection_string + ssl_config
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
