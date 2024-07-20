@@ -17,9 +17,9 @@ db = SQLAlchemy(app)
 
 # Define your database model
 class Base(db.Model):
-    __tablename__ = 'base_w_spotify_id'
+    __tablename__ = 'base_w_isrc'
     song_id = db.Column(db.String)
-    spotify_track_id = db.Column(db.String)
+    isrc = db.Column(db.String) 
     word = db.Column(db.String)
     count = db.Column(db.Integer)
     id = db.Column(db.Integer, primary_key=True)
@@ -36,13 +36,13 @@ def get_words():
         if data is None:
             raise ValueError("No JSON data received")
 
-        track_ids = data.get('trackIds', [])
-        if not track_ids:
-            raise ValueError("No track IDs provided")
+        isrc_codes = data.get('isrcCodes', [])
+        if not isrc_codes:
+            raise ValueError("No ISRC codes provided")
 
-        # Query the database
+        # Query the database using ISRC codes
         query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count')).\
-            filter(Base.spotify_track_id.in_(track_ids)).\
+            filter(Base.isrc.in_(isrc_codes)).\
             group_by(Base.word).\
             order_by(db.desc('total_count'))
 
