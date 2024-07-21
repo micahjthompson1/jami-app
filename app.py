@@ -44,6 +44,7 @@ def get_words():
         query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count')).\
             filter(Base.isrc.in_(isrc_codes)).\
             group_by(Base.word).\
+            having(db.func.sum(Base.count) > 1).\
             order_by(db.desc('total_count'))
 
         results = query.all()
