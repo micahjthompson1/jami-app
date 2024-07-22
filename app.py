@@ -17,12 +17,14 @@ db = SQLAlchemy(app)
 
 # Define your database model
 class Base(db.Model):
-    __tablename__ = 'base_w_isrc'
+    __tablename__ = 'base_w_isrc_new'
+    id = db.Column(db.Integer, primary_key=True)
     song_id = db.Column(db.String)
     isrc = db.Column(db.String) 
     word = db.Column(db.String)
+    translation = db.Column(db.String)
     count = db.Column(db.Integer)
-    id = db.Column(db.Integer, primary_key=True)
+    
 
 @app.route('/')
 def index():
@@ -41,16 +43,16 @@ def get_words():
             raise ValueError("No ISRC codes provided")
 
         # Query the database using ISRC codes
-        query = db.session.query(Base.word, db.func.sum(Base.count).label('total_count')).\
+        query = db.session.query(Base.word, Base.translation, db.func.sum(Base.count).label('total_count')).\
             filter(Base.isrc.in_(isrc_codes)).\
-            group_by(Base.word).\
+            group_by(Base.word, Base.translation).\
             having(db.func.sum(Base.count) > 1).\
             order_by(db.desc('total_count'))
 
         results = query.all()
 
         # Format the results
-        words = [{'word': row.word, 'total_count': int(row.total_count)} for row in results]
+        words = [{'word': row.word, 'translation': row.translation, 'total_count': int(row.total_count)} for row in results]
 
         return jsonify(words)
     except ValueError as ve:

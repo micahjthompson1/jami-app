@@ -117,7 +117,7 @@
           wordsDiv.innerHTML = '<h3>Common French Words:</h3>';
           words.forEach(word => {
             const wordP = document.createElement('p');
-            wordP.textContent = `${word.word}: ${word.total_count}`;
+            wordP.textContent = `${word.word} (${word.translation}): ${word.total_count}`;
             wordsDiv.appendChild(wordP);
           });
           container.appendChild(wordsDiv);
