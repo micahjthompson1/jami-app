@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 from flask_cors import CORS
 import mysql.connector
+from collections import Counter
 
 app = Flask(__name__)
 CORS(app)
@@ -24,7 +25,7 @@ class Base(db.Model):
     word = db.Column(db.String)
     translation = db.Column(db.String)
     count = db.Column(db.Integer)
-    
+
 
 @app.route('/')
 def index():
@@ -42,6 +43,9 @@ def get_words():
         if not isrc_codes:
             raise ValueError("No ISRC codes provided")
 
+        # Count the occurrences of each ISRC code
+        isrc_counts = Counter(isrc_codes)
+
         # Query the database using ISRC codes
         query = db.session.query(Base.word, Base.translation, db.func.sum(Base.count).label('total_count')).\
             filter(Base.isrc.in_(isrc_codes)).\
@@ -51,8 +55,13 @@ def get_words():
 
         results = query.all()
 
-        # Format the results
-        words = [{'word': row.word, 'translation': row.translation, 'total_count': int(row.total_count)} for row in results]
+        # Adjust the total_count based on the frequency of each ISRC code
+        words = []
+        for row in results:
+            # Multiply the total count by the sum of counts for the corresponding ISRCs
+            total_multiplier = sum(isrc_counts[isrc] for isrc in isrc_codes if isrc in isrc_counts)
+            adjusted_count = int(row.total_count) * total_multiplier
+            words.append({'word': row.word, 'translation': row.translation, 'total_count': adjusted_count})
 
         return jsonify(words)
     except ValueError as ve:
