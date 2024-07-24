@@ -101,26 +101,62 @@
         const container = document.getElementById('recently-played');
         container.innerHTML = '';
 
+        // Create the combined table
+        const table = document.createElement('table');
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Track Name</th>
+              <th>Artist</th>
+              <th>ISRC</th>
+              <th>French Words</th>
+            </tr>
+          </thead>
+          <tbody id="combined-body"></tbody>
+        `;
+        container.appendChild(table);
+        const tableBody = document.getElementById('combined-body');
+
         const isrcCodes = [];
         for (const item of tracks) {
           const trackId = item.track.id;
           const isrc = await fetchISRC(trackId, accessToken);
           isrcCodes.push(isrc);
-          const trackDiv = document.createElement('div');
-          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name} (ISRC: ${isrc})`;
-          container.appendChild(trackDiv);
+
+          const row = tableBody.insertRow();
+          row.innerHTML = `
+            <td>${item.track.name}</td>
+            <td>${item.track.artists[0].name}</td>
+            <td>${isrc}</td>
+            <td id="words-${isrc}">Loading...</td>
+          `;
         }
 
         if (isrcCodes.length > 0) {
           const words = await fetchWordsFromDatabase(isrcCodes);
-          const wordsDiv = document.createElement('div');
-          wordsDiv.innerHTML = '<h3>Common French Words:</h3>';
+
+          // Group words by ISRC
+          const wordsByIsrc = {};
           words.forEach(word => {
-            const wordP = document.createElement('p');
-            wordP.textContent = `${word.word} (${word.translation}): ${word.total_count}`;
-            wordsDiv.appendChild(wordP);
+            if (!wordsByIsrc[word.isrc]) {
+              wordsByIsrc[word.isrc] = [];
+            }
+            wordsByIsrc[word.isrc].push(word);
           });
-          container.appendChild(wordsDiv);
+
+          // Populate words for each track
+          isrcCodes.forEach(isrc => {
+            const wordsCell = document.getElementById(`words-${isrc}`);
+            const trackWords = wordsByIsrc[isrc] || [];
+            if (trackWords.length > 0) {
+              const wordsList = trackWords.map(word => 
+                `${word.word} (${word.translation}): ${word.total_count}`
+              ).join('<br>');
+              wordsCell.innerHTML = wordsList;
+            } else {
+              wordsCell.textContent = 'No words found';
+            }
+          });
         }
       }
 
