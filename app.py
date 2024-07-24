@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import os
 from flask_cors import CORS
-import mysql.connector
 from collections import Counter
 
 app = Flask(__name__)
@@ -26,7 +25,6 @@ class Base(db.Model):
     translation = db.Column(db.String)
     count = db.Column(db.Integer)
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -47,21 +45,29 @@ def get_words():
         isrc_counts = Counter(isrc_codes)
 
         # Query the database using ISRC codes
-        query = db.session.query(Base.word, Base.translation, db.func.sum(Base.count).label('total_count')).\
-            filter(Base.isrc.in_(isrc_codes)).\
-            group_by(Base.word, Base.translation).\
-            having(db.func.sum(Base.count) > 1).\
-            order_by(db.desc('total_count'))
+        query = db.session.query(Base.word, Base.translation, Base.isrc, Base.count).\
+            filter(Base.isrc.in_(isrc_codes))
 
         results = query.all()
 
-        # Adjust the total_count based on the frequency of each ISRC code
-        words = []
+        # Adjust the count based on the frequency of each ISRC code
+        word_counts = {}
         for row in results:
-            # Multiply the total count by the sum of counts for the corresponding ISRCs
-            total_multiplier = sum(isrc_counts[isrc] for isrc in isrc_codes if isrc in isrc_counts)
-            adjusted_count = int(row.total_count) * total_multiplier
-            words.append({'word': row.word, 'translation': row.translation, 'total_count': adjusted_count})
+            word_key = (row.word, row.translation)
+            adjusted_count = row.count * isrc_counts[row.isrc]
+
+            if word_key in word_counts:
+                word_counts[word_key] += adjusted_count
+            else:
+                word_counts[word_key] = adjusted_count
+
+        # Format the results
+        words = [{'word': word, 'translation': translation, 'total_count': count} 
+                 for (word, translation), count in word_counts.items() 
+                 if count > 1]
+
+        # Sort the results by total_count in descending order
+        words.sort(key=lambda x: x['total_count'], reverse=True)
 
         return jsonify(words)
     except ValueError as ve:
