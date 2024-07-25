@@ -130,6 +130,7 @@
             name: "Words",
             children: words.map(word => ({
               name: word.word,
+              translation: word.translation,
               value: word.total_count
             }))
           };
@@ -164,8 +165,12 @@
             .attr("fill", "steelblue");
 
           cell.append("text")
+            .attr("x", 4)
+            .attr("y", 13)
+            .attr("font-size", "0.6em")
+            .attr("fill", "white")
             .selectAll("tspan")
-            .data(d => d.data.name.split(/(?=[A-Z][^A-Z])/g))
+            .data(d => [d.data.name, `(${d.data.translation})`])
             .enter().append("tspan")
             .attr("x", 4)
             .attr("y", (d, i) => 13 + i * 10)

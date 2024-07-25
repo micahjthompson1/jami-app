@@ -27,7 +27,7 @@ class Base(db.Model):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index_treemp.html')
 
 @app.route('/api/words', methods=['POST'])
 def get_words():
@@ -68,7 +68,7 @@ def get_words():
 
         # Sort the results by total_count in descending order
         words.sort(key=lambda x: x['total_count'], reverse=True)
-        words = words[:50]  # Limit to top 50 words
+        words = words[:25]  # Limit to top 25 words
 
         return jsonify(words)
     except ValueError as ve:
