@@ -41,35 +41,30 @@ def get_words():
         if not isrc_codes:
             raise ValueError("No ISRC codes provided")
 
+        # Count the occurrences of each ISRC code
+        isrc_counts = Counter(isrc_codes)
+
         # Query the database using ISRC codes
         query = db.session.query(Base.word, Base.translation, Base.isrc, Base.count).\
             filter(Base.isrc.in_(isrc_codes))
 
         results = query.all()
 
-        # Group words by ISRC and calculate total count
-        words_by_isrc = {}
+        # Adjust the count based on the frequency of each ISRC code
+        word_counts = {}
         for row in results:
-            if row.isrc not in words_by_isrc:
-                words_by_isrc[row.isrc] = {}
-
             word_key = (row.word, row.translation)
-            if word_key in words_by_isrc[row.isrc]:
-                words_by_isrc[row.isrc][word_key] += row.count
+            adjusted_count = row.count * isrc_counts[row.isrc]
+
+            if word_key in word_counts:
+                word_counts[word_key] += adjusted_count
             else:
-                words_by_isrc[row.isrc][word_key] = row.count
+                word_counts[word_key] = adjusted_count
 
         # Format the results
-        words = []
-        for isrc, word_counts in words_by_isrc.items():
-            for (word, translation), count in word_counts.items():
-                if count > 1:
-                    words.append({
-                        'word': word,
-                        'translation': translation,
-                        'total_count': count,
-                        'isrc': isrc
-                    })
+        words = [{'word': word, 'translation': translation, 'total_count': count} 
+                 for (word, translation), count in word_counts.items() 
+                 if count > 1]
 
         # Sort the results by total_count in descending order
         words.sort(key=lambda x: x['total_count'], reverse=True)
