@@ -34,7 +34,6 @@
       <div id="recently-played">
         <!-- Fetched data will be inserted here -->
       </div>
-      <h2>Common French Words Tree Map:</h2>
       <div id="treemap"></div>
     </div>
 
@@ -115,7 +114,7 @@
           const isrc = await fetchISRC(trackId, accessToken);
           isrcCodes.push(isrc);
           const trackDiv = document.createElement('div');
-          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name} (ISRC: ${isrc})`;
+          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name}`;
           container.appendChild(trackDiv);
         }
 
