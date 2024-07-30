@@ -167,8 +167,12 @@
           cell.append("text")
             .attr("x", 4)
             .attr("y", 13)
-            .attr("font-size", "0.6em")
             .attr("fill", "white")
+            .attr("font-size", d => {
+              const cellWidth = d.x1 - d.x0;
+              const cellHeight = d.y1 - d.y0;
+              return Math.min(cellWidth, cellHeight) / 5; // Adjust the divisor to control the font size
+            })
             .selectAll("tspan")
             .data(d => [d.data.name, `(${d.data.translation})`])
             .enter().append("tspan")
