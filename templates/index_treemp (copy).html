@@ -109,30 +109,20 @@
         container.innerHTML = '';
 
         const isrcCodes = [];
-        const trackMap = new Map();
-
         for (const item of tracks) {
           const trackId = item.track.id;
           const isrc = await fetchISRC(trackId, accessToken);
           isrcCodes.push(isrc);
-          trackMap.set(isrc, item);
+          const trackDiv = document.createElement('div');
+          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name}`;
+          container.appendChild(trackDiv);
         }
 
-        if (isrcCodes.length > 0) {
-          const response = await fetchWordsFromDatabase(isrcCodes);
-          const words = response.words;
-          const validIsrcs = response.valid_isrcs;
-
-          for (const isrc of validIsrcs) {
-            const item = trackMap.get(isrc);
-            const trackDiv = document.createElement('div');
-            trackDiv.textContent = `${item.track.artists[0].name} - ${item.track.name}`;
-            container.appendChild(trackDiv);
+         if (isrcCodes.length > 0) {
+            const words = await fetchWordsFromDatabase(isrcCodes);
+            createTreeMap(words);
           }
-
-          createTreeMap(words);
         }
-      }
 
       function createTreeMap(words) {
         const data = {

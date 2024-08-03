@@ -52,11 +52,9 @@ def get_words():
 
         # Adjust the count based on the frequency of each ISRC code
         word_counts = {}
-        valid_isrcs = set()
         for row in results:
             word_key = (row.word, row.translation)
             adjusted_count = row.count * isrc_counts[row.isrc]
-            valid_isrcs.add(row.isrc)
 
             if word_key in word_counts:
                 word_counts[word_key] += adjusted_count
@@ -72,7 +70,7 @@ def get_words():
         words.sort(key=lambda x: x['total_count'], reverse=True)
         words = words[:25]  # Limit to top 25 words
 
-        return jsonify({"words": words, "valid_isrcs": list(valid_isrcs)})
+        return jsonify(words)
     except ValueError as ve:
         app.logger.error(f"ValueError: {ve}")
         return jsonify({"error": str(ve)}), 400
