@@ -36,12 +36,28 @@
         height: 500px;
         margin-top: 30px;
       }
+      #downloadCsv {
+        display: none;
+        margin: 20px 0;
+        padding: 10px 15px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+
+      #downloadCsv:hover {
+        background-color: #45a049;
+      }
     </style>
   </head>
   <body>
     <div id="container">
       <h1>WordNab</h1>
       <div id="treemap"></div>
+      <button id="downloadCsv">Download Word Data (CSV)</button>
       <div id="recently-played">
         <!-- Fetched data will be inserted here -->
       </div>
@@ -153,6 +169,7 @@
           }
 
           createTreeMap(words);
+          setupDownloadButton(words); 
         } else {
           // If no tracks at all, display a message
           const noTracksMsg = document.createElement('p');
@@ -244,7 +261,33 @@
         });
       }
 
+      function generateCsv(words) {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Word,Translation,Count\n";
+        words.forEach(word => {
+          csvContent += `${word.word},${word.translation},${word.total_count}\n`;
+        });
+        return encodeURI(csvContent);
+      }
+
+      function downloadCsv(words) {
+        const csvContent = generateCsv(words);
+        const link = document.createElement("a");
+        link.setAttribute("href", csvContent);
+        link.setAttribute("download", "word_data.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function setupDownloadButton(words) {
+        const downloadButton = document.getElementById('downloadCsv');
+        downloadButton.style.display = 'inline-block';
+        downloadButton.addEventListener('click', () => downloadCsv(words));
+      }
+
       async function main() {
+        document.getElementById('downloadCsv').style.display = 'none';
         let accessToken = getAccessTokenFromUrl();
         if (!accessToken) {
           window.location.href = getSpotifyAuthUrl();
