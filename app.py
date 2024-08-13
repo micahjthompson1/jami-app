@@ -17,9 +17,8 @@ db = SQLAlchemy(app)
 
 # Define your database model
 class Base(db.Model):
-    __tablename__ = 'base_w_isrc_new'
+    __tablename__ = 'base_latest_fr_fix'
     id = db.Column(db.Integer, primary_key=True)
-    song_id = db.Column(db.String)
     isrc = db.Column(db.String) 
     word = db.Column(db.String)
     translation = db.Column(db.String)
