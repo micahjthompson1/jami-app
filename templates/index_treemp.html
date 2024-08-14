@@ -180,86 +180,86 @@
       }
 
       function createTreeMap(words) {
-        const data = {
-          name: "Words",
-          children: words.map(word => ({
-            name: word.word,
-            translation: word.translation,
-            value: word.total_count
-          }))
-        };
+          const data = {
+              name: "Words",
+              children: words.map(word => ({
+                  name: word.word,
+                  translation: word.translation,
+                  value: word.total_count
+              }))
+          };
 
-        const width = document.getElementById('treemap').clientWidth;
-        const height = 500;
+          const width = document.getElementById('treemap').clientWidth;
+          const height = 500;
 
-        const treemap = d3.treemap()
-          .size([width, height])
-          .padding(1)
-          .round(true);
+          const treemap = d3.treemap()
+              .size([width, height])
+              .padding(1)
+              .round(true);
 
-        const root = d3.hierarchy(data)
-          .sum(d => d.value)
-          .sort((a, b) => b.value - a.value);
+          const root = d3.hierarchy(data)
+              .sum(d => d.value)
+              .sort((a, b) => b.value - a.value);
 
-        treemap(root);
+          treemap(root);
 
-        const svg = d3.select("#treemap")
-          .append("svg")
-          .attr("width", width)
-          .attr("height", height);
+          const svg = d3.select("#treemap")
+              .append("svg")
+              .attr("width", width)
+              .attr("height", height);
 
-        const cell = svg.selectAll("g")
-          .data(root.leaves())
-          .enter().append("g")
-          .attr("transform", d => `translate(${d.x0},${d.y0})`);
+          const cell = svg.selectAll("g")
+              .data(root.leaves())
+              .enter().append("g")
+              .attr("transform", d => `translate(${d.x0},${d.y0})`);
 
-        cell.append("rect")
-          .attr("width", d => d.x1 - d.x0)
-          .attr("height", d => d.y1 - d.y0)
-          .attr("fill", "steelblue");
+          cell.append("rect")
+              .attr("width", d => d.x1 - d.x0)
+              .attr("height", d => d.y1 - d.y0)
+              .attr("fill", "steelblue")
+              .on("click", function(event, d) {
+                  // Remove the word from the data
+                  const index = words.findIndex(word => word.word === d.data.name);
+                  if (index !== -1) {
+                      words.splice(index, 1);
+                      d3.select(this.parentNode).remove(); // Remove the cell from the TreeMap
+                  }
+              });
 
-        cell.each(function(d) {
-          const group = d3.select(this);
-          const cellWidth = d.x1 - d.x0;
-          const cellHeight = d.y1 - d.y0;
-          const padding = 4;
+          cell.each(function(d) {
+              const group = d3.select(this);
+              const cellWidth = d.x1 - d.x0;
+              const cellHeight = d.y1 - d.y0;
+              const padding = 4;
+              const fontSize = Math.min(cellWidth, cellHeight) / 6;
 
-          // Calculate font size based on cell dimensions
-          const fontSize = Math.min(cellWidth, cellHeight) / 6;
+              const text = group.append("text")
+                  .attr("fill", "white")
+                  .attr("font-size", fontSize)
+                  .attr("font-family", "Arial, sans-serif");
 
-          // Create text elements
-          const text = group.append("text")
-            .attr("fill", "white")
-            .attr("font-size", fontSize)
-            .attr("font-family", "Arial, sans-serif");
+              const wordText = text.append("tspan")
+                  .attr("x", padding)
+                  .attr("y", fontSize + padding)
+                  .text(d.data.name);
 
-          // Add word
-          const wordText = text.append("tspan")
-            .attr("x", padding)
-            .attr("y", fontSize + padding)
-            .text(d.data.name);
+              const translationText = text.append("tspan")
+                  .attr("x", padding)
+                  .attr("dy", fontSize * 1.2)
+                  .text(`(${d.data.translation})`);
 
-          // Add translation
-          const translationText = text.append("tspan")
-            .attr("x", padding)
-            .attr("dy", fontSize * 1.2)
-            .text(`(${d.data.translation})`);
-
-          // Check if text fits, if not, remove translation
-          const textBBox = text.node().getBBox();
-          if (textBBox.width > cellWidth - padding * 2 || textBBox.height > cellHeight - padding * 2) {
-            translationText.remove();
-
-            // If word alone doesn't fit, truncate it
-            if (wordText.node().getComputedTextLength() > cellWidth - padding * 2) {
-              let truncatedText = d.data.name;
-              while (wordText.node().getComputedTextLength() > cellWidth - padding * 2 && truncatedText.length > 0) {
-                truncatedText = truncatedText.slice(0, -1);
-                wordText.text(truncatedText + '...');
+              const textBBox = text.node().getBBox();
+              if (textBBox.width > cellWidth - padding * 2 || textBBox.height > cellHeight - padding * 2) {
+                  translationText.remove();
+                  if (wordText.node().getComputedTextLength() > cellWidth - padding * 2) {
+                      let truncatedText = d.data.name;
+                      while (wordText.node().getComputedTextLength() > cellWidth - padding * 2 && truncatedText.length > 0) {
+                          truncatedText = truncatedText.slice(0, -1);
+                          wordText.text(truncatedText + '...');
+                      }
+                  }
               }
-            }
-          }
-        });
+          });
       }
 
       function generateCsv(words) {
