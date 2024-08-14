@@ -36,13 +36,13 @@
         height: 500px;
         margin-top: 30px;
       }
-      .treemap-rect {
+      .remove-icon {
+          cursor: pointer;
           transition: fill 0.2s ease, transform 0.2s ease;
       }
-      .treemap-rect:hover {
-          fill: #4682b4; /* Change color on hover */
-          cursor: pointer; /* Change cursor to pointer */
-          transform: scale(1.05); /* Slightly enlarge the cell */
+      .remove-icon:hover {
+          fill: darkred;
+          transform: scale(1.2);
       }
       #downloadCsv {
         display: none;
@@ -227,15 +227,7 @@
               cell.append("rect")
                   .attr("width", d => d.x1 - d.x0)
                   .attr("height", d => d.y1 - d.y0)
-                  .attr("fill", "steelblue")
-                  .attr("class", "treemap-rect") // Add the CSS class here
-                  .on("click", function(event, d) {
-                      const index = words.findIndex(word => word.word === d.data.name);
-                      if (index !== -1) {
-                          words.splice(index, 1);
-                          updateTreeMap();
-                      }
-                  });
+                  .attr("fill", "steelblue");
 
               cell.each(function(d) {
                   const group = d3.select(this);
@@ -270,6 +262,23 @@
                           }
                       }
                   }
+
+                  // Add "x" icon for removal
+                  group.append("text")
+                      .attr("x", cellWidth - padding * 2)
+                      .attr("y", fontSize + padding)
+                      .attr("fill", "red")
+                      .attr("font-size", fontSize)
+                      .attr("font-family", "Arial, sans-serif")
+                      .attr("class", "remove-icon")
+                      .text("x")
+                      .on("click", function(event) {
+                          const index = words.findIndex(word => word.word === d.data.name);
+                          if (index !== -1) {
+                              words.splice(index, 1);
+                              updateTreeMap();
+                          }
+                      });
               });
           }
 
