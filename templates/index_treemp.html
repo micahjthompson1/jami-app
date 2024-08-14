@@ -36,6 +36,14 @@
         height: 500px;
         margin-top: 30px;
       }
+      .treemap-rect {
+          transition: fill 0.2s ease, transform 0.2s ease;
+      }
+      .treemap-rect:hover {
+          fill: #4682b4; /* Change color on hover */
+          cursor: pointer; /* Change cursor to pointer */
+          transform: scale(1.05); /* Slightly enlarge the cell */
+      }
       #downloadCsv {
         display: none;
         margin: 20px 0;
@@ -180,15 +188,6 @@
       }
 
       function createTreeMap(words) {
-          const data = {
-              name: "Words",
-              children: words.map(word => ({
-                  name: word.word,
-                  translation: word.translation,
-                  value: word.total_count
-              }))
-          };
-
           const width = document.getElementById('treemap').clientWidth;
           const height = 500;
 
@@ -197,69 +196,84 @@
               .padding(1)
               .round(true);
 
-          const root = d3.hierarchy(data)
-              .sum(d => d.value)
-              .sort((a, b) => b.value - a.value);
-
-          treemap(root);
-
           const svg = d3.select("#treemap")
               .append("svg")
               .attr("width", width)
               .attr("height", height);
 
-          const cell = svg.selectAll("g")
-              .data(root.leaves())
-              .enter().append("g")
-              .attr("transform", d => `translate(${d.x0},${d.y0})`);
+          function updateTreeMap() {
+              const data = {
+                  name: "Words",
+                  children: words.map(word => ({
+                      name: word.word,
+                      translation: word.translation,
+                      value: word.total_count
+                  }))
+              };
 
-          cell.append("rect")
-              .attr("width", d => d.x1 - d.x0)
-              .attr("height", d => d.y1 - d.y0)
-              .attr("fill", "steelblue")
-              .on("click", function(event, d) {
-                  // Remove the word from the data
-                  const index = words.findIndex(word => word.word === d.data.name);
-                  if (index !== -1) {
-                      words.splice(index, 1);
-                      d3.select(this.parentNode).remove(); // Remove the cell from the TreeMap
-                  }
-              });
+              const root = d3.hierarchy(data)
+                  .sum(d => d.value)
+                  .sort((a, b) => b.value - a.value);
 
-          cell.each(function(d) {
-              const group = d3.select(this);
-              const cellWidth = d.x1 - d.x0;
-              const cellHeight = d.y1 - d.y0;
-              const padding = 4;
-              const fontSize = Math.min(cellWidth, cellHeight) / 6;
+              treemap(root);
 
-              const text = group.append("text")
-                  .attr("fill", "white")
-                  .attr("font-size", fontSize)
-                  .attr("font-family", "Arial, sans-serif");
+              svg.selectAll("g").remove();
 
-              const wordText = text.append("tspan")
-                  .attr("x", padding)
-                  .attr("y", fontSize + padding)
-                  .text(d.data.name);
+              const cell = svg.selectAll("g")
+                  .data(root.leaves())
+                  .enter().append("g")
+                  .attr("transform", d => `translate(${d.x0},${d.y0})`);
 
-              const translationText = text.append("tspan")
-                  .attr("x", padding)
-                  .attr("dy", fontSize * 1.2)
-                  .text(`(${d.data.translation})`);
+              cell.append("rect")
+                  .attr("width", d => d.x1 - d.x0)
+                  .attr("height", d => d.y1 - d.y0)
+                  .attr("fill", "steelblue")
+                  .attr("class", "treemap-rect") // Add the CSS class here
+                  .on("click", function(event, d) {
+                      const index = words.findIndex(word => word.word === d.data.name);
+                      if (index !== -1) {
+                          words.splice(index, 1);
+                          updateTreeMap();
+                      }
+                  });
 
-              const textBBox = text.node().getBBox();
-              if (textBBox.width > cellWidth - padding * 2 || textBBox.height > cellHeight - padding * 2) {
-                  translationText.remove();
-                  if (wordText.node().getComputedTextLength() > cellWidth - padding * 2) {
-                      let truncatedText = d.data.name;
-                      while (wordText.node().getComputedTextLength() > cellWidth - padding * 2 && truncatedText.length > 0) {
-                          truncatedText = truncatedText.slice(0, -1);
-                          wordText.text(truncatedText + '...');
+              cell.each(function(d) {
+                  const group = d3.select(this);
+                  const cellWidth = d.x1 - d.x0;
+                  const cellHeight = d.y1 - d.y0;
+                  const padding = 4;
+                  const fontSize = Math.min(cellWidth, cellHeight) / 6;
+
+                  const text = group.append("text")
+                      .attr("fill", "white")
+                      .attr("font-size", fontSize)
+                      .attr("font-family", "Arial, sans-serif");
+
+                  const wordText = text.append("tspan")
+                      .attr("x", padding)
+                      .attr("y", fontSize + padding)
+                      .text(d.data.name);
+
+                  const translationText = text.append("tspan")
+                      .attr("x", padding)
+                      .attr("dy", fontSize * 1.2)
+                      .text(`(${d.data.translation})`);
+
+                  const textBBox = text.node().getBBox();
+                  if (textBBox.width > cellWidth - padding * 2 || textBBox.height > cellHeight - padding * 2) {
+                      translationText.remove();
+                      if (wordText.node().getComputedTextLength() > cellWidth - padding * 2) {
+                          let truncatedText = d.data.name;
+                          while (wordText.node().getComputedTextLength() > cellWidth - padding * 2 && truncatedText.length > 0) {
+                              truncatedText = truncatedText.slice(0, -1);
+                              wordText.text(truncatedText + '...');
+                          }
                       }
                   }
-              }
-          });
+              });
+          }
+
+          updateTreeMap();
       }
 
       function generateCsv(words) {
