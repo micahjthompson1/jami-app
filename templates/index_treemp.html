@@ -151,6 +151,9 @@
         const isrcCodes = [];
         const trackMap = new Map();
 
+        // Sort tracks by played_at timestamp in descending order (most recent first)
+        tracks.sort((a, b) => new Date(b.played_at) - new Date(a.played_at));
+
         for (const item of tracks) {
           const trackId = item.track.id;
           const isrc = await fetchISRC(trackId, accessToken);
