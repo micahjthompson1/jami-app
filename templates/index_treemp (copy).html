@@ -1,37 +1,72 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>WordNab</title>
+    <title>wordNab</title>
      <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
       h1 {
         font-size: 40px;
-        font-family: Roboto;
+        font-family: Roboto, sans-serif;
         font-weight: normal;
         color: rgb(100, 100, 100);
         text-align: center;
       }
       h2 {
-        font-size: 20px;
-        font-family: Roboto;
+        font-size: 24px;
+        font-family: Roboto, sans-serif;
+        color: #444;
+        margin-top: 20px;
+        margin-bottom: 15px;
       }
-
       #container {
         max-width: 720px;
         margin: 0 auto;
+        padding: 20px;
       }
-
+      #recently-played div {
+        margin-bottom: 10px;
+      }
       #treemap {
         width: 100%;
         height: 500px;
+        margin-top: 30px;
+      }
+      .treemap-rect {
+          transition: fill 0.2s ease, transform 0.2s ease;
+      }
+      .treemap-rect:hover {
+          fill: #4682b4; /* Change color on hover */
+          cursor: pointer; /* Change cursor to pointer */
+          transform: scale(1.05); /* Slightly enlarge the cell */
+      }
+      #downloadCsv {
+        display: none;
+        margin: 20px 0;
+        padding: 10px 15px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+
+      #downloadCsv:hover {
+        background-color: #45a049;
       }
     </style>
   </head>
   <body>
     <div id="container">
-      <h1>WordNab</h1>
+      <img src="static/images/blue_lion_1.png" alt="Nab the lion" style="display: block; margin: 0 auto; width: 400px;">
+      <h1>wordNab</h1>
       <div id="treemap"></div>
-      <h2>Recently Played Songs:</h2>
+      <button id="downloadCsv">Download Word Data (CSV)</button>
       <div id="recently-played">
         <!-- Fetched data will be inserted here -->
       </div>
@@ -106,108 +141,168 @@
 
       async function displayTracksAndWords(tracks, accessToken) {
         const container = document.getElementById('recently-played');
-        container.innerHTML = '';
+        container.innerHTML = ''; // Clear the container
+
+        // Create and add the dynamic header
+        const header = document.createElement('h2');
+        header.textContent = "Songs with French Words:";
+        container.appendChild(header);
 
         const isrcCodes = [];
+        const trackMap = new Map();
+
         for (const item of tracks) {
           const trackId = item.track.id;
           const isrc = await fetchISRC(trackId, accessToken);
           isrcCodes.push(isrc);
-          const trackDiv = document.createElement('div');
-          trackDiv.textContent = `${item.track.name} - ${item.track.artists[0].name}`;
-          container.appendChild(trackDiv);
+          trackMap.set(isrc, item);
         }
 
-         if (isrcCodes.length > 0) {
-            const words = await fetchWordsFromDatabase(isrcCodes);
-            createTreeMap(words);
+        if (isrcCodes.length > 0) {
+          const response = await fetchWordsFromDatabase(isrcCodes);
+          const words = response.words;
+          const validIsrcs = response.valid_isrcs;
+
+          if (validIsrcs.length > 0) {
+            for (const isrc of validIsrcs) {
+              const item = trackMap.get(isrc);
+              const trackDiv = document.createElement('div');
+              trackDiv.textContent = `${item.track.artists[0].name} - ${item.track.name}`;
+              container.appendChild(trackDiv);
+            }
+          } else {
+            // If no valid ISRCs, display a message
+            const noTracksMsg = document.createElement('p');
+            noTracksMsg.textContent = "No songs with French words found in your recently played tracks.";
+            container.appendChild(noTracksMsg);
           }
+
+          createTreeMap(words);
+          setupDownloadButton(words); 
+        } else {
+          // If no tracks at all, display a message
+          const noTracksMsg = document.createElement('p');
+          noTracksMsg.textContent = "No recently played tracks found.";
+          container.appendChild(noTracksMsg);
         }
+      }
 
       function createTreeMap(words) {
-        const data = {
-          name: "Words",
-          children: words.map(word => ({
-            name: word.word,
-            translation: word.translation,
-            value: word.total_count
-          }))
-        };
+          const width = document.getElementById('treemap').clientWidth;
+          const height = 500;
 
-        const width = document.getElementById('treemap').clientWidth;
-        const height = 500;
+          const treemap = d3.treemap()
+              .size([width, height])
+              .padding(1)
+              .round(true);
 
-        const treemap = d3.treemap()
-          .size([width, height])
-          .padding(1)
-          .round(true);
+          const svg = d3.select("#treemap")
+              .append("svg")
+              .attr("width", width)
+              .attr("height", height);
 
-        const root = d3.hierarchy(data)
-          .sum(d => d.value)
-          .sort((a, b) => b.value - a.value);
+          function updateTreeMap() {
+              const data = {
+                  name: "Words",
+                  children: words.map(word => ({
+                      name: word.word,
+                      translation: word.translation,
+                      value: word.total_count
+                  }))
+              };
 
-        treemap(root);
+              const root = d3.hierarchy(data)
+                  .sum(d => d.value)
+                  .sort((a, b) => b.value - a.value);
 
-        const svg = d3.select("#treemap")
-          .append("svg")
-          .attr("width", width)
-          .attr("height", height);
+              treemap(root);
 
-        const cell = svg.selectAll("g")
-          .data(root.leaves())
-          .enter().append("g")
-          .attr("transform", d => `translate(${d.x0},${d.y0})`);
+              svg.selectAll("g").remove();
 
-        cell.append("rect")
-          .attr("width", d => d.x1 - d.x0)
-          .attr("height", d => d.y1 - d.y0)
-          .attr("fill", "steelblue");
+              const cell = svg.selectAll("g")
+                  .data(root.leaves())
+                  .enter().append("g")
+                  .attr("transform", d => `translate(${d.x0},${d.y0})`);
 
-        cell.each(function(d) {
-          const group = d3.select(this);
-          const cellWidth = d.x1 - d.x0;
-          const cellHeight = d.y1 - d.y0;
-          const padding = 4;
+              cell.append("rect")
+                  .attr("width", d => d.x1 - d.x0)
+                  .attr("height", d => d.y1 - d.y0)
+                  .attr("fill", "steelblue")
+                  .attr("class", "treemap-rect") // Add the CSS class here
+                  .on("click", function(event, d) {
+                      const index = words.findIndex(word => word.word === d.data.name);
+                      if (index !== -1) {
+                          words.splice(index, 1);
+                          updateTreeMap();
+                      }
+                  });
 
-          // Calculate font size based on cell dimensions
-          const fontSize = Math.min(cellWidth, cellHeight) / 6;
+              cell.each(function(d) {
+                  const group = d3.select(this);
+                  const cellWidth = d.x1 - d.x0;
+                  const cellHeight = d.y1 - d.y0;
+                  const padding = 4;
+                  const fontSize = Math.min(cellWidth, cellHeight) / 6;
 
-          // Create text elements
-          const text = group.append("text")
-            .attr("fill", "white")
-            .attr("font-size", fontSize)
-            .attr("font-family", "Arial, sans-serif");
+                  const text = group.append("text")
+                      .attr("fill", "white")
+                      .attr("font-size", fontSize)
+                      .attr("font-family", "Arial, sans-serif");
 
-          // Add word
-          const wordText = text.append("tspan")
-            .attr("x", padding)
-            .attr("y", fontSize + padding)
-            .text(d.data.name);
+                  const wordText = text.append("tspan")
+                      .attr("x", padding)
+                      .attr("y", fontSize + padding)
+                      .text(d.data.name);
 
-          // Add translation
-          const translationText = text.append("tspan")
-            .attr("x", padding)
-            .attr("dy", fontSize * 1.2)
-            .text(`(${d.data.translation})`);
+                  const translationText = text.append("tspan")
+                      .attr("x", padding)
+                      .attr("dy", fontSize * 1.2)
+                      .text(`(${d.data.translation})`);
 
-          // Check if text fits, if not, remove translation
-          const textBBox = text.node().getBBox();
-          if (textBBox.width > cellWidth - padding * 2 || textBBox.height > cellHeight - padding * 2) {
-            translationText.remove();
-
-            // If word alone doesn't fit, truncate it
-            if (wordText.node().getComputedTextLength() > cellWidth - padding * 2) {
-              let truncatedText = d.data.name;
-              while (wordText.node().getComputedTextLength() > cellWidth - padding * 2 && truncatedText.length > 0) {
-                truncatedText = truncatedText.slice(0, -1);
-                wordText.text(truncatedText + '...');
-              }
-            }
+                  const textBBox = text.node().getBBox();
+                  if (textBBox.width > cellWidth - padding * 2 || textBBox.height > cellHeight - padding * 2) {
+                      translationText.remove();
+                      if (wordText.node().getComputedTextLength() > cellWidth - padding * 2) {
+                          let truncatedText = d.data.name;
+                          while (wordText.node().getComputedTextLength() > cellWidth - padding * 2 && truncatedText.length > 0) {
+                              truncatedText = truncatedText.slice(0, -1);
+                              wordText.text(truncatedText + '...');
+                          }
+                      }
+                  }
+              });
           }
+
+          updateTreeMap();
+      }
+
+      function generateCsv(words) {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Word,Translation,Count\n";
+        words.forEach(word => {
+          csvContent += `${word.word},${word.translation},${word.total_count}\n`;
         });
+        return encodeURI(csvContent);
+      }
+
+      function downloadCsv(words) {
+        const csvContent = generateCsv(words);
+        const link = document.createElement("a");
+        link.setAttribute("href", csvContent);
+        link.setAttribute("download", "word_data.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function setupDownloadButton(words) {
+        const downloadButton = document.getElementById('downloadCsv');
+        downloadButton.style.display = 'inline-block';
+        downloadButton.addEventListener('click', () => downloadCsv(words));
       }
 
       async function main() {
+        document.getElementById('downloadCsv').style.display = 'none';
         let accessToken = getAccessTokenFromUrl();
         if (!accessToken) {
           window.location.href = getSpotifyAuthUrl();
