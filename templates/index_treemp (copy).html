@@ -40,7 +40,7 @@
           transition: fill 0.2s ease, transform 0.2s ease;
       }
       .treemap-rect:hover {
-          fill: #4682b4; /* Change color on hover */
+          fill: #8B0000; /* Change color on hover */
           cursor: pointer; /* Change cursor to pointer */
           transform: scale(1.05); /* Slightly enlarge the cell */
       }
@@ -149,26 +149,30 @@
         container.appendChild(header);
 
         const isrcCodes = [];
-        const trackMap = new Map();
+        const trackDetails = [];
+
+        // Sort tracks by played_at timestamp in descending order (most recent first)
+        tracks.sort((a, b) => new Date(b.played_at) - new Date(a.played_at));
 
         for (const item of tracks) {
           const trackId = item.track.id;
           const isrc = await fetchISRC(trackId, accessToken);
           isrcCodes.push(isrc);
-          trackMap.set(isrc, item);
+          trackDetails.push({ isrc, item });
         }
 
         if (isrcCodes.length > 0) {
           const response = await fetchWordsFromDatabase(isrcCodes);
           const words = response.words;
-          const validIsrcs = response.valid_isrcs;
+          const validIsrcs = new Set(response.valid_isrcs); // Use a Set for quick lookup
 
-          if (validIsrcs.length > 0) {
-            for (const isrc of validIsrcs) {
-              const item = trackMap.get(isrc);
-              const trackDiv = document.createElement('div');
-              trackDiv.textContent = `${item.track.artists[0].name} - ${item.track.name}`;
-              container.appendChild(trackDiv);
+          if (validIsrcs.size > 0) {
+            for (const { isrc, item } of trackDetails) {
+              if (validIsrcs.has(isrc)) {
+                const trackDiv = document.createElement('div');
+                trackDiv.textContent = `${item.track.artists[0].name} - ${item.track.name}`;
+                container.appendChild(trackDiv);
+              }
             }
           } else {
             // If no valid ISRCs, display a message
