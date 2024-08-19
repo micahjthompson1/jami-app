@@ -175,7 +175,6 @@
 
           if (isrcCodes.length > 0) {
               const response = await fetchWordsFromDatabase(isrcCodes);
-              const words = response.words.map(wordObj => wordObj.word); // Extract the word property
               const validIsrcs = new Set(response.valid_isrcs); // Use a Set for quick lookup
 
               for (const { isrc, item } of trackDetails) {
@@ -193,7 +192,14 @@
 
                   // Common French Words
                   const wordsCell = document.createElement('td');
-                  wordsCell.textContent = words.join(', ');
+                  if (validIsrcs.has(isrc)) {
+                      const words = response.words
+                          .filter(wordObj => wordObj.isrc === isrc)
+                          .map(wordObj => wordObj.word);
+                      wordsCell.textContent = words.join(', ');
+                  } else {
+                      wordsCell.textContent = ''; // No words if ISRC is not valid
+                  }
                   row.appendChild(wordsCell);
 
                   // Add to wordNab
@@ -211,8 +217,9 @@
                   table.appendChild(row);
               }
 
-              createTreeMap(words);
-              setupDownloadButton(words);
+              // Use the full JSON object for createTreeMap and setupDownloadButton
+              createTreeMap(response.words);
+              setupDownloadButton(response.words);
           } else {
               const noTracksMsg = document.createElement('p');
               noTracksMsg.textContent = "No recently played tracks found.";
