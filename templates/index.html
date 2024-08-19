@@ -193,9 +193,10 @@
                   // Common French Words
                   const wordsCell = document.createElement('td');
                   if (validIsrcs.has(isrc)) {
-                      const words = response.words
+                      const wordsForTrack = response.words
+                          .filter(wordObj => wordObj.isrc === isrc)
                           .map(wordObj => wordObj.word);
-                      wordsCell.textContent = words.join(', ');
+                      wordsCell.textContent = wordsForTrack.join(', ');
                   } else {
                       wordsCell.textContent = ''; // No words if ISRC is not valid
                   }

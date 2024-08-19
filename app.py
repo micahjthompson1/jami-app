@@ -53,7 +53,7 @@ def get_words():
         word_counts = {}
         valid_isrcs = set()
         for row in results:
-            word_key = (row.word, row.translation)
+            word_key = (row.word, row.translation, row.isrc)
             adjusted_count = row.count * isrc_counts[row.isrc]
             valid_isrcs.add(row.isrc)
 
@@ -63,8 +63,8 @@ def get_words():
                 word_counts[word_key] = adjusted_count
 
         # Format the results
-        words = [{'word': word, 'translation': translation, 'total_count': count} 
-                 for (word, translation), count in word_counts.items() 
+        words = [{'word': word, 'translation': translation, 'total_count': count, 'isrc': isrc} 
+                 for (word, translation, isrc), count in word_counts.items() 
                  if count > 1]
 
         # Sort the results by total_count in descending order
