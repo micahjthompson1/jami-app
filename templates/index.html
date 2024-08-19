@@ -217,9 +217,9 @@
                   table.appendChild(row);
               }
 
-              // Use the full JSON object for createTreeMap and setupDownloadButton
-              createTreeMap(response.words);
-              setupDownloadButton(response.words);
+            const limitedWords = response.words.slice(0, 25);
+              createTreeMap(limitedWords);
+              setupDownloadButton(limitedWords);
           } else {
               const noTracksMsg = document.createElement('p');
               noTracksMsg.textContent = "No recently played tracks found.";

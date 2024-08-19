@@ -69,7 +69,6 @@ def get_words():
 
         # Sort the results by total_count in descending order
         words.sort(key=lambda x: x['total_count'], reverse=True)
-        words = words[:25]  # Limit to top 25 words
 
         return jsonify({"words": words, "valid_isrcs": list(valid_isrcs)})
     except ValueError as ve:
