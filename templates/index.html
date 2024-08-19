@@ -194,7 +194,6 @@
                   const wordsCell = document.createElement('td');
                   if (validIsrcs.has(isrc)) {
                       const words = response.words
-                          .filter(wordObj => wordObj.isrc === isrc)
                           .map(wordObj => wordObj.word);
                       wordsCell.textContent = words.join(', ');
                   } else {
