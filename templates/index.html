@@ -217,9 +217,8 @@
                   table.appendChild(row);
               }
 
-            const limitedWords = response.words.slice(0, 25); // Limit to 25 words in TreeMap
-              createTreeMap(limitedWords);
-              setupDownloadButton(limitedWords);
+              createTreeMap(response.words);
+              setupDownloadButton(response.words);
           } else {
               const noTracksMsg = document.createElement('p');
               noTracksMsg.textContent = "No recently played tracks found.";
