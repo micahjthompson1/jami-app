@@ -230,14 +230,26 @@
                   table.appendChild(row);
               }
 
-            const limitedWords = response.words.slice(0, 25); // Limit to 25 words in TreeMap
-              createTreeMap(limitedWords);
-              setupDownloadButton(limitedWords);
-          } else {
-              const noTracksMsg = document.createElement('p');
-              noTracksMsg.textContent = "No recently played tracks found.";
-              container.appendChild(noTracksMsg);
-          }
+            // Aggregate words to remove duplicates
+            const wordMap = {};
+            response.words.forEach(wordObj => {
+                if (wordMap[wordObj.word]) {
+                    wordMap[wordObj.word].total_count += wordObj.total_count;
+                } else {
+                    wordMap[wordObj.word] = { ...wordObj };
+                }
+            });
+
+            // Convert the aggregated word map back to an array
+            const aggregatedWords = Object.values(wordMap).slice(0, 25); // Limit to 25 words in TreeMap
+
+            createTreeMap(aggregatedWords);
+            setupDownloadButton(aggregatedWords);
+            } else {
+            const noTracksMsg = document.createElement('p');
+            noTracksMsg.textContent = "No recently played tracks found.";
+            container.appendChild(noTracksMsg);
+            }
       }
 
       function sendEmailNotification(trackName, artistName) {
