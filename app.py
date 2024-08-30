@@ -17,7 +17,7 @@ db = SQLAlchemy(app)
 
 # Define your database model
 class Base(db.Model):
-    __tablename__ = 'base_latest_fr_fix'
+    __tablename__ = 'base_latest_fr'
     id = db.Column(db.Integer, primary_key=True)
     isrc = db.Column(db.String) 
     word = db.Column(db.String)

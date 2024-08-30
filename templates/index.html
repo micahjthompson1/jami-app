@@ -217,7 +217,7 @@
                   table.appendChild(row);
               }
 
-            const limitedWords = response.words.slice(0, 25);
+            const limitedWords = response.words.slice(0, 25); // Limit to 25 words in TreeMap
               createTreeMap(limitedWords);
               setupDownloadButton(limitedWords);
           } else {
