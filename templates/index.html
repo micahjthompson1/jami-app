@@ -241,7 +241,7 @@
             });
 
             // Convert the aggregated word map back to an array
-            const aggregatedWords = Object.values(wordMap).slice(0, 25); // Limit to 25 words in TreeMap
+            const aggregatedWords = Object.values(wordMap).slice(0, 30); // Limit # of words in TreeMap
 
             createTreeMap(aggregatedWords);
             setupDownloadButton(aggregatedWords);
