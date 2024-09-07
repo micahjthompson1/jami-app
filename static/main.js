@@ -20,148 +20,81 @@ function getAccessTokenFromUrl() {
 }
 
 async function fetchRecentlyPlayed(accessToken) {
-  const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-    },
-  });
-  const data = await response.json();
-  return data.items;
-}
-
-async function fetchTrackDetails(trackId, accessToken) {
-  const response = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-    },
-  });
-  const data = await response.json();
-  return data;
-}
-
-async function fetchISRC(trackId, accessToken) {
-  const trackDetails = await fetchTrackDetails(trackId, accessToken);
-  return trackDetails.external_ids.isrc;
-}
-
-async function fetchWordsFromDatabase(isrcCodes) {
-  console.log('Sending ISRC codes:', isrcCodes);
-  try {
-    const response = await fetch('/api/words', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ isrcCodes }),
+    const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+        },
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.items;
+}
+
+async function fetchLyrics(artist, title) {
+    try {
+        const response = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
+        const data = await response.json();
+        return data.lyrics;
+    } catch (error) {
+        console.error('Error fetching lyrics:', error);
+        return null;
     }
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching words from database:', error);
-    throw error;
-  }
+}
+
+async function fetchCommonFrenchWords(lyrics) {
+    try {
+        const response = await fetch('/api/match-words', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ lyrics }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching common French words:', error);
+        throw error;
+    }
 }
 
 async function displayTracksAndWords(tracks, accessToken) {
     const container = document.getElementById('recently-played');
-    container.innerHTML = ''; // Clear the container
+    container.innerHTML = '';
 
-    // Create and add the dynamic header
     const header = document.createElement('h2');
     header.textContent = "Recently Played Tracks:";
     container.appendChild(header);
 
-    // Create a table
     const table = document.createElement('table');
     const tableHeader = `
         <tr>
-            <th>Title</th>
+            <th>Track</th>
             <th>Artist</th>
             <th>Common French Words</th>
-            <th>Add to wordNab</th>
-        </tr>`;
+        </tr>
+    `;
     table.innerHTML = tableHeader;
-    container.appendChild(table);
-
-    const isrcCodes = [];
-    const trackDetails = [];
-
-    // Sort tracks by played_at timestamp in descending order (most recent first)
-    tracks.sort((a, b) => new Date(b.played_at) - new Date(a.played_at));
 
     for (const item of tracks) {
-        const trackId = item.track.id;
-        const isrc = await fetchISRC(trackId, accessToken);
-        isrcCodes.push(isrc);
-        trackDetails.push({ isrc, item });
+        const track = item.track;
+        const artist = track.artists[0].name;
+        const title = track.name;
+
+        const lyrics = await fetchLyrics(artist, title);
+        const commonWords = lyrics ? await fetchCommonFrenchWords(lyrics) : [];
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${title}</td>
+            <td>${artist}</td>
+            <td>${commonWords.join(', ')}</td>
+        `;
+        table.appendChild(row);
     }
 
-    if (isrcCodes.length > 0) {
-        const response = await fetchWordsFromDatabase(isrcCodes);
-        const validIsrcs = new Set(response.valid_isrcs); // Use a Set for quick lookup
-
-        for (const { isrc, item } of trackDetails) {
-            const row = document.createElement('tr');
-
-            // Title
-            const titleCell = document.createElement('td');
-            titleCell.textContent = item.track.name;
-            row.appendChild(titleCell);
-
-            // Artist
-            const artistCell = document.createElement('td');
-            artistCell.textContent = item.track.artists[0].name;
-            row.appendChild(artistCell);
-
-            // Common French Words
-            const wordsCell = document.createElement('td');
-            if (validIsrcs.has(isrc)) {
-                const wordsForTrack = response.words
-                    .filter(wordObj => wordObj.isrc === isrc)
-                    .map(wordObj => wordObj.word);
-                wordsCell.textContent = wordsForTrack.join(', ');
-            } else {
-                wordsCell.textContent = ''; // No words if ISRC is not valid
-            }
-            row.appendChild(wordsCell);
-
-            // Add to wordNab
-            const addToWordNabCell = document.createElement('td');
-            if (!validIsrcs.has(isrc)) {
-                const addButton = document.createElement('button');
-                addButton.textContent = '+';
-                addButton.onclick = () => {
-                    sendEmailNotification(item.track.name, item.track.artists[0].name);
-                };
-                addToWordNabCell.appendChild(addButton);
-            }
-            row.appendChild(addToWordNabCell);
-
-            table.appendChild(row);
-        }
-
-      // Aggregate words to remove duplicates
-      const wordMap = {};
-      response.words.forEach(wordObj => {
-          if (wordMap[wordObj.word]) {
-              wordMap[wordObj.word].total_count += wordObj.total_count;
-          } else {
-              wordMap[wordObj.word] = { ...wordObj };
-          }
-      });
-
-      // Convert the aggregated word map back to an array
-      const aggregatedWords = Object.values(wordMap).slice(0, 30); // Limit # of words in TreeMap
-
-      createTreeMap(aggregatedWords);
-      setupDownloadButton(aggregatedWords);
-      } else {
-      const noTracksMsg = document.createElement('p');
-      noTracksMsg.textContent = "No recently played tracks found.";
-      container.appendChild(noTracksMsg);
-      }
+    container.appendChild(table);
 }
 
 function sendEmailNotification(trackName, artistName) {
