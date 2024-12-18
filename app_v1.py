@@ -26,7 +26,7 @@ class Base(db.Model):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index_v1.html')
 
 @app.route('/api/words', methods=['POST'])
 def get_words():
