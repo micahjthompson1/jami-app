@@ -4,6 +4,7 @@ import os
 from flask_cors import CORS
 from collections import Counter
 import re 
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -21,6 +22,15 @@ class CommonFrenchWord(db.Model):
     __tablename__ = 'common_words_french_freq50'
     id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(255), unique=True, nullable=False)
+
+@app.route('/proxy')
+def proxy():
+    url = request.args.get('url')
+    try:
+        response = requests.get(url)
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/')
 def index():
@@ -51,4 +61,5 @@ def match_words():
         return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=True)

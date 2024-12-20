@@ -31,9 +31,8 @@ async function fetchRecentlyPlayed(accessToken) {
 
 async function fetchLyrics(artist, title) {
     try {
-        const corsProxy = 'https://cors-anywhere.herokuapp.com/';
         const apiUrl = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
-        const response = await fetch(corsProxy + apiUrl);
+        const response = await fetch(`/proxy?url=${encodeURIComponent(apiUrl)}`);
         const data = await response.json();
         return data.lyrics;
     } catch (error) {
