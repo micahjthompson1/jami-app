@@ -40,23 +40,6 @@
         margin-bottom: 10px;
     }
 
-    /* Treemap Styles */
-    #treemap {
-        width: 100%;
-        height: 500px;
-        margin-top: 30px;
-    }
-
-    .treemap-rect {
-        transition: fill 0.2s ease, transform 0.2s ease;
-    }
-
-    .treemap-rect:hover {
-        fill: #8B0000; /* Change color on hover */
-        cursor: pointer; /* Change cursor to pointer */
-        transform: scale(1.05); /* Slightly enlarge the cell */
-    }
-
     /* Download Button Styles */
     #downloadCsv {
         display: none;
@@ -95,7 +78,6 @@
   <div id="container">
     <img src="static/images/blue_lion_1.png" alt="Nab the lion" style="display: block; margin: 0 auto; width: 400px;">
     <h1>wordNab</h1>
-    <div id="treemap"></div>
     <button id="downloadCsv">Download Word Data (CSV)</button>
     <div id="recently-played">
         <!-- Fetched data will be inserted here -->
