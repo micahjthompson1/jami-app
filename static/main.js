@@ -20,7 +20,7 @@ function getAccessTokenFromUrl() {
 }
 
 async function fetchRecentlyPlayed(accessToken) {
-    const response = await fetch('https://api.spotify.com/v1/me/player/recently-played', {
+    const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=5', {
         headers: {
             'Authorization': `Bearer ${accessToken}`,
         },
@@ -41,21 +41,21 @@ async function fetchLyrics(artist, title) {
     }
 }
 
-async function fetchCommonFrenchWords(lyrics) {
+async function fetchContextForLyric(lyric) {
     try {
-        const response = await fetch('/api/match-words', {
+        const response = await fetch('/api/generate-context', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ lyrics }),
+            body: JSON.stringify({ lyric }),
         });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return await response.json();
     } catch (error) {
-        console.error('Error fetching common French words:', error);
+        console.error('Error generating context:', error);
         throw error;
     }
 }
@@ -69,11 +69,12 @@ async function displayTracksAndWords(tracks, accessToken) {
     container.appendChild(header);
 
     const table = document.createElement('table');
+    table.className = 'collapsible-table';
     const tableHeader = `
         <tr>
-            <th>Track</th>
-            <th>Artist</th>
-            <th>Common French Words</th>
+            <th>Song</th>
+            <th>Common Word</th>
+            <th>Context</th>
         </tr>
     `;
     table.innerHTML = tableHeader;
@@ -86,45 +87,44 @@ async function displayTracksAndWords(tracks, accessToken) {
         const lyrics = await fetchLyrics(artist, title);
         const commonWords = lyrics ? await fetchCommonFrenchWords(lyrics) : [];
 
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${title}</td>
-            <td>${artist}</td>
-            <td>${commonWords.join(', ')}</td>
+        const songRow = document.createElement('tr');
+        songRow.className = 'song-row';
+        songRow.innerHTML = `
+            <td colspan="3">${title} - ${artist}</td>
         `;
-        table.appendChild(row);
+        table.appendChild(songRow);
+
+        for (const word of commonWords) {
+            const lyricLine = lyrics.split('\n').find(line => line.includes(word));
+            const context = await fetchContextForLyric(lyricLine);
+
+            const wordRow = document.createElement('tr');
+            wordRow.className = 'word-row hidden';
+            wordRow.innerHTML = `
+                <td></td>
+                <td>${word}</td>
+                <td>${context}</td>
+            `;
+            table.appendChild(wordRow);
+        }
     }
 
     container.appendChild(table);
-}
 
-function generateCsv(words) {
-  let csvContent = "data:text/csv;charset=utf-8,";
-  csvContent += "Word,Translation,Count\n";
-  words.forEach(word => {
-    csvContent += `${word.word},${word.translation},${word.total_count}\n`;
-  });
-  return encodeURI(csvContent);
-}
-
-function downloadCsv(words) {
-  const csvContent = generateCsv(words);
-  const link = document.createElement("a");
-  link.setAttribute("href", csvContent);
-  link.setAttribute("download", "word_data.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-function setupDownloadButton(words) {
-  const downloadButton = document.getElementById('downloadCsv');
-  downloadButton.style.display = 'inline-block';
-  downloadButton.addEventListener('click', () => downloadCsv(words));
+    // Add click event listener for collapsible rows
+    const songRows = document.querySelectorAll('.song-row');
+    songRows.forEach(row => {
+        row.addEventListener('click', () => {
+            const wordRows = row.nextElementSibling;
+            while (wordRows && wordRows.classList.contains('word-row')) {
+                wordRows.classList.toggle('hidden');
+                wordRows = wordRows.nextElementSibling;
+            }
+        });
+    });
 }
 
 async function main() {
-  document.getElementById('downloadCsv').style.display = 'none';
   let accessToken = getAccessTokenFromUrl();
   if (!accessToken) {
     window.location.href = getSpotifyAuthUrl();
