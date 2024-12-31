@@ -4,7 +4,27 @@ import os
 from flask_cors import CORS
 import re 
 import requests
+import torch
 from transformers import MT5ForConditionalGeneration, MT5Tokenizer
+from torch.nn.modules.lazy import LazyModuleMixin
+
+class LazyTensor:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.tensor = None
+
+    def materialize(self):
+        if self.tensor is None:
+            self.tensor = torch.load(self.file_path)
+        return self.tensor
+
+    def __getattr__(self, name):
+        return getattr(self.materialize(), name)
+
+class LazyMT5(LazyModuleMixin, MT5ForConditionalGeneration):
+    def __init__(self, config):
+        super().__init__(config)
+
 
 app = Flask(__name__)
 CORS(app)
@@ -17,9 +37,17 @@ app.config['SQLALCHEMY_DATABASE_URI'] = base_connection_string + ssl_config
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Load mT5 model and tokenizer
-model = MT5ForConditionalGeneration.from_pretrained("google/mt5-small")
-tokenizer = MT5Tokenizer.from_pretrained("google/mt5-small")
+# Lazy-loaded mT5 model and tokenizer
+model = None
+tokenizer = None
+
+def load_model_and_tokenizer():
+    global model, tokenizer
+    if model is None or tokenizer is None:
+        model = LazyMT5.from_pretrained("google/mt5-small")
+        tokenizer = MT5Tokenizer.from_pretrained("google/mt5-small")
+        model = model.half()  # Convert to float16 for memory efficiency
+
 
 class CommonFrenchWord(db.Model):
     __tablename__ = 'common_words_french_freq50'
@@ -46,14 +74,15 @@ def match_words():
         if not lyrics:
             return jsonify({'error': 'Lyrics are required'}), 400
 
-        words = re.findall(r'\w+', lyrics.lower())
-        matching_words = CommonFrenchWord.query.filter(CommonFrenchWord.word.in_(words)).all()
-        result = [word.word for word in matching_words]
+        words = set(re.findall(r'\w+', lyrics.lower()))  # Use a set for efficiency
+        matching_words = CommonFrenchWord.query.with_entities(CommonFrenchWord.word).filter(CommonFrenchWord.word.in_(words)).all()
+        result = [word[0] for word in matching_words]
         return jsonify(result)
 
     except Exception as e:
         print('Error in match_words:', str(e))
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @app.route('/api/generate-context', methods=['POST'])
 def generate_context():
@@ -62,17 +91,33 @@ def generate_context():
         if not lyric:
             return jsonify({'error': 'Lyric is required'}), 400
 
+        load_model_and_tokenizer()  # Ensure model and tokenizer are loaded
+
         input_text = f"Translate and explain the context of this French lyric: {lyric}"
         input_ids = tokenizer.encode(input_text, return_tensors="pt")
-        output = model.generate(input_ids, max_length=150, num_return_sequences=1)
+
+        with torch.no_grad():  # Disable gradient calculation for inference
+            output = model.generate(input_ids, max_length=150, num_return_sequences=1)
+
         context = tokenizer.decode(output[0], skip_special_tokens=True)
+
+        clear_memory()  # Clear memory after processing
 
         return jsonify({'context': context})
 
     except Exception as e:
         print('Error in generate_context:', str(e))
+        clear_memory()  # Clear memory even if an error occurs
         return jsonify({'error': 'Internal server error'}), 500
+
+def clear_memory():
+    global model, tokenizer
+    del model
+    del tokenizer
+    model = None
+    tokenizer = None
+    torch.cuda.empty_cache()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
