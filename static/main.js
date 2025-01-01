@@ -41,6 +41,25 @@ async function fetchLyrics(artist, title) {
     }
 }
 
+async function fetchCommonFrenchWords(lyrics) {
+    try {
+        const response = await fetch('/api/match-words', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ lyrics }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching common French words:', error);
+        return [];
+    }
+}
+
 async function fetchContextForLyric(lyric) {
     try {
         const response = await fetch('/api/generate-context', {
