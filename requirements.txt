@@ -9,3 +9,7 @@ requests
 transformers
 torch
 sentencepiece
+Flask-Limiter
+Flask-Caching
+celery
+redis

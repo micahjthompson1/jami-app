@@ -72,11 +72,39 @@ async function fetchContextForLyric(lyric) {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return await response.json();
+        const data = await response.json();
+        return data.task_id;
     } catch (error) {
         console.error('Error generating context:', error);
         throw error;
     }
+}
+
+async function getContextResult(taskId) {
+    try {
+        const response = await fetch(`/api/get-context-result/${taskId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching context result:', error);
+        throw error;
+    }
+}
+
+async function pollContextResult(taskId, maxAttempts = 10, interval = 2000) {
+    for (let i = 0; i < maxAttempts; i++) {
+        const result = await getContextResult(taskId);
+        if (result.status === 'completed') {
+            return result.context;
+        } else if (result.status === 'failed') {
+            throw new Error('Context generation failed');
+        }
+        await new Promise(resolve => setTimeout(resolve, interval));
+    }
+    throw new Error('Context generation timed out');
 }
 
 async function displayTracksAndWords(tracks, accessToken) {
@@ -115,16 +143,26 @@ async function displayTracksAndWords(tracks, accessToken) {
 
         for (const word of commonWords) {
             const lyricLine = lyrics.split('\n').find(line => line.includes(word));
-            const context = await fetchContextForLyric(lyricLine);
+            const taskId = await fetchContextForLyric(lyricLine);
 
             const wordRow = document.createElement('tr');
             wordRow.className = 'word-row hidden';
             wordRow.innerHTML = `
                 <td></td>
                 <td>${word}</td>
-                <td>${context}</td>
+                <td>Loading context...</td>
             `;
             table.appendChild(wordRow);
+
+            // Start polling for context result
+            pollContextResult(taskId)
+                .then(context => {
+                    wordRow.cells[2].textContent = context;
+                })
+                .catch(error => {
+                    wordRow.cells[2].textContent = 'Failed to load context';
+                    console.error('Error loading context:', error);
+                });
         }
     }
 
@@ -134,10 +172,10 @@ async function displayTracksAndWords(tracks, accessToken) {
     const songRows = document.querySelectorAll('.song-row');
     songRows.forEach(row => {
         row.addEventListener('click', () => {
-            const wordRows = row.nextElementSibling;
-            while (wordRows && wordRows.classList.contains('word-row')) {
-                wordRows.classList.toggle('hidden');
-                wordRows = wordRows.nextElementSibling;
+            let wordRow = row.nextElementSibling;
+            while (wordRow && wordRow.classList.contains('word-row')) {
+                wordRow.classList.toggle('hidden');
+                wordRow = wordRow.nextElementSibling;
             }
         });
     });
