@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from celery import Celery
 import os
@@ -46,9 +44,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = base_connection_string + ssl_config
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Rate limiter
-limiter = Limiter(app, key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
-
 # Caching
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
@@ -79,7 +74,6 @@ class CommonFrenchWord(db.Model):
     word = db.Column(db.String(255), unique=True, nullable=False)
 
 @app.route('/proxy')
-@limiter.limit("100 per minute")
 def proxy():
     url = request.args.get('url')
     try:
@@ -94,7 +88,6 @@ def index():
     return render_template('index.html')
 
 @app.route('/api/match-words', methods=['POST'])
-@limiter.limit("50 per minute")
 @cache.memoize(timeout=3600)
 def match_words():
     try:
@@ -130,7 +123,6 @@ def generate_context_task(lyric):
     return process_context_generation(lyric)
 
 @app.route('/api/generate-context', methods=['POST'])
-@limiter.limit("10 per minute")
 @cache.memoize(timeout=3600)
 def generate_context():
     try:
