@@ -53,7 +53,7 @@ limiter = Limiter(app, key_func=get_remote_address, default_limits=["200 per day
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 # Celery
-celery = Celery(app.name, broker='redis://localhost:6379/0')
+celery = Celery(app.name, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 celery.conf.update(app.config)
 
 # Model queue
