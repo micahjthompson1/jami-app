@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_caching import Cache
 from celery import Celery
 import os
 from flask_cors import CORS
@@ -44,9 +43,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = base_connection_string + ssl_config
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Caching
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
-
 # Celery
 celery = Celery(app.name, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 celery.conf.update(app.config)
@@ -88,7 +84,6 @@ def index():
     return render_template('index.html')
 
 @app.route('/api/match-words', methods=['POST'])
-@cache.memoize(timeout=3600)
 def match_words():
     try:
         lyrics = request.json.get('lyrics')
@@ -123,7 +118,6 @@ def generate_context_task(lyric):
     return process_context_generation(lyric)
 
 @app.route('/api/generate-context', methods=['POST'])
-@cache.memoize(timeout=3600)
 def generate_context():
     try:
         lyric = request.json.get('lyric')

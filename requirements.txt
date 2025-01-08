@@ -9,6 +9,5 @@ requests
 transformers
 torch
 sentencepiece
-Flask-Caching
 celery
 redis
