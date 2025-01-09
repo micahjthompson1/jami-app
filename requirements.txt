@@ -9,3 +9,4 @@ torch
 sentencepiece
 celery
 redis
+accelerate>=0.26.0
