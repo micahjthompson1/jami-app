@@ -1,109 +1,72 @@
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>wordNab</title>
-     <script src="https://d3js.org/d3.v7.min.js"></script>
-  <style>
-    /* General Styles */
-    body {
-        font-family: Arial, sans-serif;
-        line-height: 1.6;
-        color: #333;
-    }
-
-    /* Header Styles */
-    h1 {
-        font-size: 40px;
-        font-family: Roboto, sans-serif;
-        font-weight: normal;
-        color: rgb(100, 100, 100);
-        text-align: center;
-    }
-
-    h2 {
-        font-size: 24px;
-        font-family: Roboto, sans-serif;
-        color: #444;
-        margin-top: 20px;
-        margin-bottom: 15px;
-    }
-
-    /* Container Styles */
-    #container {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-
-    /* Recently Played Section */
-    #recently-played div {
-        margin-bottom: 10px;
-    }
-
-    /* Download Button Styles */
-    #downloadCsv {
-        display: none;
-        margin: 20px 0;
-        padding: 10px 15px;
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-    }
-
-    #downloadCsv:hover {
-        background-color: #45a049;
-    }
-
-    /* Table Styles */
-    table {
-        width: 100%;
-        border-collapse: collapse; /* Ensures that borders are shared between cells */
-    }
-
-    th, td {
-        border: 1px solid black; /* Adds a border to table headers and cells */
-        padding: 8px; /* Adds padding for better readability */
-        text-align: left; /* Aligns text to the left */
-    }
-
-    th {
-        background-color: #f2f2f2; /* Optional: Adds a background color to the headers */
-    }
-      
-    .collapsible-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .collapsible-table th, .collapsible-table td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-
-    .song-row {
-        background-color: #f2f2f2;
-        cursor: pointer;
-    }
-
-    .word-row.hidden {
-      display: none;
-    }
-
-  </style>
-  </head>
-  <body>
-  <div id="container">
-    <img src="static/images/blue_lion_1.png" alt="Nab the lion" style="display: block; margin: 0 auto; width: 400px;">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background-color: #1ED760;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .collapsible-table tr {
+            cursor: pointer;
+        }
+        .collapsible-table .expanded {
+            background-color: #e6f3ff;
+        }
+        .show-details {
+            display: table-cell;
+        }
+    </style>
+</head>
+<body>
     <h1>wordNab</h1>
-    <button id="downloadCsv">Download Word Data (CSV)</button>
-    <div id="recently-played">
-        <!-- Fetched data will be inserted here -->
-    </div>
-  </div>
+    <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
+    <div id="recently-played"></div>
+    <button id="download-csv">Download Word Data (CSV)</button>
+    
     <script src="static/main.js"></script>
-  </body>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = getAccessTokenFromUrl();
+            if (accessToken) {
+                fetchRecentlyPlayed(accessToken).then(tracks => {
+                    displayTracksAndWords(tracks, accessToken);
+                });
+            }
+        });
+    </script>
+</body>
 </html>
