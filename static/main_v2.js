@@ -119,91 +119,83 @@ async function displayTracksAndWords(tracks, accessToken) {
     const header = document.createElement('h2');
     header.textContent = "Recently Played Tracks:";
     container.appendChild(header);
-
     const table = document.createElement('table');
     table.className = 'collapsible-table';
     const tableHeader = `
-        <tr>
-            <th>Song</th>
-            <th>Common Word</th>
-            <th>Context</th>
-        </tr>
+        <thead>
+            <tr>
+                <th>Track</th>
+                <th>Artist</th>
+                <th>Common French Words</th>
+                <th>Context</th>
+            </tr>
+        </thead>
     `;
     table.innerHTML = tableHeader;
     container.appendChild(table);
 
     for (const item of tracks) {
         const track = item.track;
-        const songName = track.name;
-        const artistName = track.artists.map(artist => artist.name).join(', ');
+        const row = table.insertRow();
+        row.insertCell().textContent = track.name;
+        row.insertCell().textContent = track.artists.map(artist => artist.name).join(', ');
 
-        const lyrics = await fetchLyrics(artistName, songName);
+        const lyricsCell = row.insertCell();
+        const contextCell = row.insertCell();
+
+        const lyrics = await fetchLyrics(track.artists[0].name, track.name);
         if (lyrics) {
             const commonWords = await fetchCommonFrenchWords(lyrics);
+            lyricsCell.textContent = commonWords.join(', ');
 
-            for (const word of commonWords) {
-                const row = table.insertRow();
-                row.className = 'song-row';
-                row.innerHTML = `
-                    <td>${songName} - ${artistName}</td>
-                    <td>${word}</td>
-                    <td class="context-cell">
-                        <button class="generate-context-btn">Generate Context</button>
-                        <div class="context-content" style="display: none;"></div>
-                    </td>
-                `;
-
-                const generateContextBtn = row.querySelector('.generate-context-btn');
-                const contextContent = row.querySelector('.context-content');
-
-                generateContextBtn.onclick = async () => {
+            if (commonWords.length > 0) {
+                const contextButton = document.createElement('button');
+                contextButton.textContent = 'Generate Context';
+                contextButton.onclick = async () => {
                     try {
-                        generateContextBtn.disabled = true;
-                        generateContextBtn.textContent = 'Generating...';
-
-                        // Find the lyric containing the common word
-                        const lyricWithWord = lyrics.split('\n').find(line => line.toLowerCase().includes(word.toLowerCase()));
-
-                        if (lyricWithWord) {
-                            const taskId = await fetchContextForLyric(lyricWithWord);
-                            const context = await pollContextResult(taskId);
-                            contextContent.textContent = context;
-                            contextContent.style.display = 'block';
-                            generateContextBtn.style.display = 'none';
-                        } else {
-                            contextContent.textContent = 'Lyric containing the word not found.';
-                            contextContent.style.display = 'block';
-                            generateContextBtn.style.display = 'none';
-                        }
+                        contextButton.disabled = true;
+                        contextButton.textContent = 'Generating...';
+                        const taskId = await fetchContextForLyric(commonWords[0]);
+                        const context = await pollContextResult(taskId);
+                        contextCell.textContent = context;
                     } catch (error) {
                         console.error('Error generating context:', error);
-                        contextContent.textContent = 'Error generating context';
-                        contextContent.style.display = 'block';
+                        contextCell.textContent = 'Error generating context';
                     } finally {
-                        generateContextBtn.disabled = false;
-                        generateContextBtn.textContent = 'Generate Context';
+                        contextButton.disabled = false;
+                        contextButton.textContent = 'Generate Context';
                     }
                 };
-
-                row.addEventListener('click', (event) => {
-                    if (!event.target.classList.contains('generate-context-btn')) {
-                        row.classList.toggle('expanded');
-                        contextContent.style.display = contextContent.style.display === 'none' ? 'block' : 'none';
-                    }
-                });
+                contextCell.appendChild(contextButton);
             }
+        } else {
+            lyricsCell.textContent = 'Lyrics not found';
         }
     }
+    
+    container.appendChild(table);
+
+    // Add click event listener for collapsible rows
+    const songRows = table.querySelectorAll('tr');
+    songRows.forEach(row => {
+        row.addEventListener('click', () => {
+            row.classList.toggle('expanded');
+            const detailsCell = row.querySelector('td:nth-child(3), td:nth-child(4)');
+            if (detailsCell) {
+                detailsCell.classList.toggle('show-details');
+            }
+        });
+    });
 }
 
 async function main() {
-    let accessToken = getAccessTokenFromUrl();
-    if (!accessToken) {
-        window.location.href = getSpotifyAuthUrl();
-    } else {
-        const tracks = await fetchRecentlyPlayed(accessToken);
-        await displayTracksAndWords(tracks, accessToken);
-    }
+  let accessToken = getAccessTokenFromUrl();
+  if (!accessToken) {
+    window.location.href = getSpotifyAuthUrl();
+  } else {
+    const tracks = await fetchRecentlyPlayed(accessToken);
+    await displayTracksAndWords(tracks, accessToken);
+  }
 }
 
 main();

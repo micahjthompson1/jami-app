@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wordNab</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background-color: #1ED760;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .collapsible-table tr {
+            cursor: pointer;
+        }
+        .collapsible-table .expanded {
+            background-color: #e6f3ff;
+        }
+        .show-details {
+            display: table-cell;
+        }
+    </style>
+</head>
+<body>
+    <h1>wordNab</h1>
+    <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
+    <div id="recently-played"></div>
+    <button id="download-csv">Download Word Data (CSV)</button>
+    
+    <script src="static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = getAccessTokenFromUrl();
+            if (accessToken) {
+                fetchRecentlyPlayed(accessToken).then(tracks => {
+                    displayTracksAndWords(tracks, accessToken);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

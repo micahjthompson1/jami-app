@@ -52,6 +52,7 @@ base_connection_string = os.environ.get('DB_CONNECTION_STRING')
 ssl_config = "&ssl_ca=/etc/ssl/cert.pem"
 app.config['SQLALCHEMY_DATABASE_URI'] = base_connection_string + ssl_config
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 # Celery
@@ -112,9 +113,10 @@ def match_words():
             return jsonify({'error': 'Lyrics are required'}), 400
 
         words = set(re.findall(r'\w+', lyrics.lower()))
+
         matching_words = db.session.query(CommonFrenchWord.word).filter(
             CommonFrenchWord.word.in_(words)
-        ).order_by(CommonFrenchWord.id).limit(10).all()  # Limit to top 10 most frequent words
+        ).limit(100).all()  # Limit to prevent excessive memory usage
 
         result = [word[0] for word in matching_words]
         return jsonify(result)
@@ -122,16 +124,16 @@ def match_words():
         logger.error(f"Error in match_words: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
     finally:
-        db.session.close()
+        db.session.close()  # Ensure the session is closed
 
 def process_context_generation(lyric):
     with model_context() as (model, tokenizer):
-        input_text = f"Explain the meaning and context of this French lyric in English: {lyric}"
+        input_text = f"Translate and explain the context of this French lyric: {lyric}"
         input_ids = tokenizer.encode(input_text, return_tensors="pt")
         with torch.no_grad():
             output = model.generate(input_ids, max_length=150, num_return_sequences=1)
         context = tokenizer.decode(output[0], skip_special_tokens=True)
-        return context
+    return context
 
 @celery.task
 def generate_context_task(lyric):
@@ -143,7 +145,6 @@ def generate_context():
         lyric = request.json.get('lyric')
         if not lyric:
             return jsonify({'error': 'Lyric is required'}), 400
-
         task = generate_context_task.delay(lyric)
         return jsonify({'task_id': task.id}), 202
     except Exception as e:

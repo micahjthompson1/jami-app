@@ -7,66 +7,94 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            margin: 0;
             padding: 20px;
+            background-color: #f0f0f0;
         }
-        h1 {
+        h1, h2 {
             color: #333;
         }
         button {
             background-color: #1DB954;
-            color: white;
             border: none;
+            color: white;
             padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
             cursor: pointer;
-            margin-bottom: 20px;
+            border-radius: 5px;
         }
-        button:hover {
-            background-color: #1ED760;
+        #recently-played {
+            margin-top: 20px;
         }
-        table {
+        .collapsible-table {
             width: 100%;
             border-collapse: collapse;
         }
-        th, td {
+        .collapsible-table th, .collapsible-table td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
-        th {
+        .collapsible-table th {
             background-color: #f2f2f2;
         }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .collapsible-table tr {
+        .song-row {
             cursor: pointer;
         }
-        .collapsible-table .expanded {
+        .song-row:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .song-row.expanded {
             background-color: #e6f3ff;
         }
-        .show-details {
-            display: table-cell;
+        .context-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .song-row.expanded .context-cell {
+            white-space: normal;
+        }
+        .generate-context-btn {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <h1>wordNab</h1>
-    <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
+    <button id="connect-spotify">Connect to Spotify</button>
+    <button id="download-csv" style="display: none;">Download Word Data (CSV)</button>
     <div id="recently-played"></div>
-    <button id="download-csv">Download Word Data (CSV)</button>
-    
-    <script src="static/main.js"></script>
+
+    <script src="wordNab_main.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const accessToken = getAccessTokenFromUrl();
-            if (accessToken) {
-                fetchRecentlyPlayed(accessToken).then(tracks => {
-                    displayTracksAndWords(tracks, accessToken);
-                });
-            }
+        document.getElementById('connect-spotify').addEventListener('click', () => {
+            window.location.href = getSpotifyAuthUrl();
         });
+
+        document.getElementById('download-csv').addEventListener('click', () => {
+            // Implement CSV download functionality here
+        });
+
+        // Check if we have an access token and hide the connect button if we do
+        if (getAccessTokenFromUrl()) {
+            document.getElementById('connect-spotify').style.display = 'none';
+            document.getElementById('download-csv').style.display = 'inline-block';
+        }
     </script>
 </body>
 </html>
