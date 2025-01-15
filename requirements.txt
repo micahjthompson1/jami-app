@@ -1,12 +1,12 @@
 Flask==3.1.0
 gunicorn
-Flask-SQLAlchemy==3.1.1
+Flask-SQLAlchemy
 flask_cors
 mysql-connector-python
 requests
-transformers==4.47.1
-torch==2.5.1
+transformers
+torch
 sentencepiece
-celery==5.5.0
+celery==5.3.5
 redis
 accelerate>=0.26.0
