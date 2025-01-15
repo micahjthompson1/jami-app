@@ -9,18 +9,23 @@ import torch
 from transformers import MT5ForConditionalGeneration, MT5Tokenizer
 from torch.nn.modules.lazy import LazyModuleMixin
 import logging
+from queue import Queue
 import gc
 from contextlib import contextmanager
-from functools import lru_cache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 gc.enable()
 
 def force_garbage_collection():
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+
+def cleanup_resources():
+    db.session.remove()
+    force_garbage_collection()
 
 class LazyTensor:
     def __init__(self, file_path):
@@ -39,34 +44,6 @@ class LazyMT5(LazyModuleMixin, MT5ForConditionalGeneration):
     def __init__(self, config):
         super().__init__(config)
 
-class ModelManager:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ModelManager, cls).__new__(cls)
-            cls._instance._model = None
-            cls._instance._tokenizer = None
-        return cls._instance
-
-    @lru_cache(maxsize=1)
-    def get_model_and_tokenizer(self):
-        if self._model is None or self._tokenizer is None:
-            self._model = LazyMT5.from_pretrained("google/mt5-small", low_cpu_mem_usage=True)
-            self._tokenizer = MT5Tokenizer.from_pretrained("google/mt5-small", use_fast=True)
-            self._model = self._model.half().to('cpu')
-        return self._model, self._tokenizer
-
-model_manager = ModelManager()
-
-@contextmanager
-def model_context():
-    model, tokenizer = model_manager.get_model_and_tokenizer()
-    try:
-        yield model, tokenizer
-    finally:
-        force_garbage_collection()
-
 app = Flask(__name__)
 CORS(app)
 
@@ -81,10 +58,32 @@ db = SQLAlchemy(app)
 celery = Celery(app.name, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 celery.conf.update(app.config)
 
-celery.conf.update(
-    worker_max_tasks_per_child=100,
-    worker_max_memory_per_child=1000000  # 1GB
-)
+# Model queue
+model_queue = Queue(maxsize=1)
+
+# Lazy-loaded mT5 model and tokenizer
+model = None
+tokenizer = None
+
+@contextmanager
+def model_context():
+    model, tokenizer = model_queue.get()
+    try:
+        yield model, tokenizer
+    finally:
+        model_queue.put((model, tokenizer))
+        force_garbage_collection()
+
+def load_model_and_tokenizer():
+    global model, tokenizer
+    if model is None or tokenizer is None:
+        model = LazyMT5.from_pretrained("google/mt5-small", low_cpu_mem_usage=True)
+        tokenizer = MT5Tokenizer.from_pretrained("google/mt5-small", use_fast=True)
+        model = model.half().to('cpu')  # Convert to float16 and move to CPU
+        model_queue.put((model, tokenizer))
+        force_garbage_collection()
+
+load_model_and_tokenizer()
 
 class CommonFrenchWord(db.Model):
     __tablename__ = 'common_words_french_freq50'
@@ -111,10 +110,12 @@ def match_words():
         lyrics = request.json.get('lyrics')
         if not lyrics:
             return jsonify({'error': 'Lyrics are required'}), 400
+
         words = set(re.findall(r'\w+', lyrics.lower()))
         matching_words = db.session.query(CommonFrenchWord.word).filter(
             CommonFrenchWord.word.in_(words)
-        ).order_by(CommonFrenchWord.id).limit(10).all()
+        ).order_by(CommonFrenchWord.id).limit(10).all()  # Limit to top 10 most frequent words
+
         result = [word[0] for word in matching_words]
         return jsonify(result)
     except Exception as e:
@@ -130,7 +131,7 @@ def process_context_generation(lyric):
         with torch.no_grad():
             output = model.generate(input_ids, max_length=150, num_return_sequences=1)
         context = tokenizer.decode(output[0], skip_special_tokens=True)
-    return context
+        return context
 
 @celery.task
 def generate_context_task(lyric):
@@ -142,6 +143,7 @@ def generate_context():
         lyric = request.json.get('lyric')
         if not lyric:
             return jsonify({'error': 'Lyric is required'}), 400
+
         task = generate_context_task.delay(lyric)
         return jsonify({'task_id': task.id}), 202
     except Exception as e:
@@ -164,7 +166,7 @@ def shutdown_session(exception=None):
 
 @app.after_request
 def after_request(response):
-    force_garbage_collection()
+    cleanup_resources()
     return response
 
 if __name__ == '__main__':

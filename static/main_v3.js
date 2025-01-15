@@ -87,7 +87,7 @@ async function fetchContextForLyric(lyric) {
 
 async function getContextResult(taskId) {
     try {
-        const response = await fetch(`/api/get-context-result/?task_id=${taskId}`);
+        const response = await fetch(`/api/get-context-result/${taskId}`);
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
@@ -104,14 +104,13 @@ async function pollContextResult(taskId, maxAttempts = 10, interval = 2000) {
     for (let i = 0; i < maxAttempts; i++) {
         const result = await getContextResult(taskId);
         if (result.status === 'completed') {
-          return result.context;
+            return result.context;
         } else if (result.status === 'failed') {
-          throw new Error('Context generation failed');
-        } else if (result.status === 'pending') {
-          // Continue polling
-        } else {
-          throw new Error('Unexpected status received');
+            throw new Error('Context generation failed');
         }
+        await new Promise(resolve => setTimeout(resolve, interval));
+    }
+    throw new Error('Context generation timed out');
 }
 
 async function displayTracksAndWords(tracks, accessToken) {
