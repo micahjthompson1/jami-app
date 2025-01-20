@@ -101,18 +101,22 @@ async function getContextResult(taskId) {
 }
 
 async function pollContextResult(taskId, maxAttempts = 10, interval = 2000) {
-    for (let i = 0; i < maxAttempts; i++) {
-        const result = await getContextResult(taskId);
-        if (result.status === 'completed') {
-          return result.context;
-        } else if (result.status === 'failed') {
-          throw new Error('Context generation failed');
-        } else if (result.status === 'pending') {
-          // Continue polling
-        } else {
-          throw new Error('Unexpected status received');
-        }
+  for (let i = 0; i < maxAttempts; i++) {
+    const result = await getContextResult(taskId);
+    if (result.status === 'completed') {
+      return result.context;
+    } else if (result.status === 'failed') {
+      throw new Error('Context generation failed');
+    } else if (result.status === 'pending') {
+      // Continue polling
+    } else {
+      throw new Error('Unexpected status received');
+    }
+    await new Promise(resolve => setTimeout(resolve, interval));
+  }
+  throw new Error('Max polling attempts reached');
 }
+
 
 async function displayTracksAndWords(tracks, accessToken) {
     const container = document.getElementById('recently-played');
