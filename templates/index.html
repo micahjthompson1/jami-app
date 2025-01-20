@@ -82,19 +82,7 @@
     
     <script src="static/main.js"></script>
     <script>
-        document.getElementById('connect-spotify').addEventListener('click', () => {
-            window.location.href = getSpotifyAuthUrl();
-        });
-
-        document.getElementById('download-csv').addEventListener('click', () => {
-            // Implement CSV download functionality here
-        });
-
-        // Check if we have an access token and hide the connect button if we do
-        if (getAccessTokenFromUrl()) {
-            document.getElementById('connect-spotify').style.display = 'none';
-            document.getElementById('download-csv').style.display = 'inline-block';
-        }
+        document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
 </html>
