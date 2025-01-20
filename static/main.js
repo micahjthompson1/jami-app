@@ -2,16 +2,16 @@ const clientId = '74fd0dba781e434dad39a8494e5426b9';
 const redirectUri = 'https://jami-app.onrender.com/';
 const scopes = 'user-read-recently-played';
 
-window.getSpotifyAuthUrl = function() {
-  const url = 'https://accounts.spotify.com/authorize';
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: 'token',
-    redirect_uri: redirectUri,
-    scope: scopes,
-  });
-  return `${url}?${params.toString()}`;
-};
+function getSpotifyAuthUrl() {
+    const url = 'https://accounts.spotify.com/authorize';
+    const params = new URLSearchParams({
+        client_id: clientId,
+        response_type: 'token',
+        redirect_uri: redirectUri,
+        scope: scopes,
+    });
+    return `${url}?${params.toString()}`;
+}
 
 function getAccessTokenFromUrl() {
     const hash = window.location.hash.substring(1);
@@ -197,26 +197,11 @@ async function displayTracksAndWords(tracks, accessToken) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const spotifyConnectButton = document.getElementById('connect-spotify');
-    if (spotifyConnectButton) {
-        spotifyConnectButton.onclick = main;
-    }
-    main();
-});
-
 async function main() {
     let accessToken = getAccessTokenFromUrl();
     if (!accessToken) {
-        const spotifyConnectButton = document.getElementById('connect-spotify');
-        if (spotifyConnectButton) {
-            spotifyConnectButton.style.display = 'inline-block';
-        }
+        window.location.href = getSpotifyAuthUrl();
     } else {
-        const spotifyConnectButton = document.getElementById('connect-spotify');
-        if (spotifyConnectButton) {
-            spotifyConnectButton.style.display = 'none';
-        }
         const tracks = await fetchRecentlyPlayed(accessToken);
         await displayTracksAndWords(tracks, accessToken);
     }

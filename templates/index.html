@@ -74,15 +74,22 @@
         }
     </style>
 </head>
-<body>
-    <h1>wordNab</h1>
-    <button id="connect-spotify">Connect To Spotify</button>
-    <button id="download-csv" style="display: none;">Download Word Data (CSV)</button>
-    <div id="recently-played"></div>
-    
-    <script src="static/main.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', main);
-    </script>
-</body>
+    <body>
+        <h1>wordNab</h1>
+        <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
+        <div id="recently-played"></div>
+        <button id="download-csv">Download Word Data (CSV)</button>
+
+        <script src="static/main.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const accessToken = getAccessTokenFromUrl();
+                if (accessToken) {
+                    fetchRecentlyPlayed(accessToken).then(tracks => {
+                        displayTracksAndWords(tracks, accessToken);
+                    });
+                }
+            });
+        </script>
+    </body>
 </html>
