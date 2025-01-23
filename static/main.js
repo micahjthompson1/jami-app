@@ -1,5 +1,5 @@
 const clientId = '74fd0dba781e434dad39a8494e5426b9';
-const redirectUri = 'https://jami-app.onrender.com/';
+const redirectUri = 'https://wordnab.onrender.com/';
 const scopes = 'user-read-recently-played';
 
 function getSpotifyAuthUrl() {
