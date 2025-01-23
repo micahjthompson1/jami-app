@@ -148,8 +148,12 @@ def generate_context():
         logger.error(f"Error in generate_context: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/api/get-context-result/<task_id>', methods=['GET'])
-def get_context_result(task_id):
+@app.route('/api/get-context-result/', methods=['GET'])
+def get_context_result():
+    task_id = request.args.get('task_id')
+    if not task_id:
+        return jsonify({'error': 'Task ID is required'}), 400
+    
     task = generate_context_task.AsyncResult(task_id)
     if task.state == 'PENDING':
         return jsonify({'status': 'pending'}), 202
