@@ -84,6 +84,7 @@ celery.conf.update(app.config)
 celery.conf.update(
     worker_max_tasks_per_child=100,
     worker_max_memory_per_child=1000000  # 1GB
+    worker_concurrency=1  # This sets CELERYD_CONCURRENCY to 1
 )
 
 class CommonFrenchWord(db.Model):
