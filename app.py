@@ -24,9 +24,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Celery
-celery = Celery(app.name, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
-celery.conf.update(app.config)
+celery = Celery(app.name)
 celery.conf.update(
+    broker_url=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
+    result_backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
     worker_max_tasks_per_child=100,
     worker_max_memory_per_child=1000000,  # 1GB
     worker_concurrency=1  # This sets CELERYD_CONCURRENCY to 1
@@ -120,13 +121,20 @@ def get_context_result():
     if not task_id:
         return jsonify({'error': 'Task ID is required'}), 400
     
-    task = generate_context_task.AsyncResult(task_id)
-    if task.state == 'PENDING':
-        return jsonify({'status': 'pending'}), 202
-    elif task.state != 'FAILURE':
-        return jsonify({'status': 'completed', 'context': task.result})
-    else:
-        return jsonify({'status': 'failed', 'error': str(task.result)}), 500
+    try:
+        task = generate_context_task.AsyncResult(task_id)
+        if task.state == 'PENDING':
+            return jsonify({'status': 'pending'}), 202
+        elif task.state == 'SUCCESS':
+            return jsonify({'status': 'completed', 'context': task.result})
+        elif task.state == 'FAILURE':
+            return jsonify({'status': 'failed', 'error': str(task.result)}), 500
+        else:
+            return jsonify({'status': 'unknown', 'state': task.state}), 500
+    except Exception as e:
+        logger.error(f"Error in get_context_result: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
+
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
