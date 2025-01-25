@@ -7,65 +7,11 @@ import re
 import requests
 import torch
 from transformers import MT5ForConditionalGeneration, MT5Tokenizer
-from torch.nn.modules.lazy import LazyModuleMixin
 import logging
 import gc
-from contextlib import contextmanager
-from functools import lru_cache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-gc.enable()
-
-def force_garbage_collection():
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-class LazyTensor:
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self.tensor = None
-
-    def materialize(self):
-        if self.tensor is None:
-            self.tensor = torch.load(self.file_path)
-        return self.tensor
-
-    def __getattr__(self, name):
-        return getattr(self.materialize(), name)
-
-class LazyMT5(LazyModuleMixin, MT5ForConditionalGeneration):
-    def __init__(self, config):
-        super().__init__(config)
-
-class ModelManager:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ModelManager, cls).__new__(cls)
-            cls._instance._model = None
-            cls._instance._tokenizer = None
-        return cls._instance
-
-    @lru_cache(maxsize=1)
-    def get_model_and_tokenizer(self):
-        if self._model is None or self._tokenizer is None:
-            self._model = LazyMT5.from_pretrained("google/mt5-small", low_cpu_mem_usage=True)
-            self._tokenizer = MT5Tokenizer.from_pretrained("google/mt5-small", use_fast=True)
-            self._model = self._model.half().to('cpu')
-        return self._model, self._tokenizer
-
-model_manager = ModelManager()
-
-@contextmanager
-def model_context():
-    model, tokenizer = model_manager.get_model_and_tokenizer()
-    try:
-        yield model, tokenizer
-    finally:
-        force_garbage_collection()
 
 app = Flask(__name__)
 CORS(app)
@@ -80,7 +26,6 @@ db = SQLAlchemy(app)
 # Celery
 celery = Celery(app.name, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 celery.conf.update(app.config)
-
 celery.conf.update(
     worker_max_tasks_per_child=100,
     worker_max_memory_per_child=1000000,  # 1GB
@@ -91,6 +36,34 @@ class CommonFrenchWord(db.Model):
     __tablename__ = 'common_words_french_freq50'
     id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(255), unique=True, nullable=False)
+
+# Model initialization
+model = None
+tokenizer = None
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def initialize_model():
+    global model, tokenizer
+    if model is None:
+        model = MT5ForConditionalGeneration.from_pretrained("google/mt5-small")
+        tokenizer = MT5Tokenizer.from_pretrained("google/mt5-small")
+        model = model.to(device)
+
+# Call this function when your app starts
+initialize_model()
+
+def process_context_generation(lyric):
+    input_text = f"Explain the meaning and context of this French lyric in English: {lyric}"
+    input_ids = tokenizer.encode(input_text, return_tensors="pt").to(device)
+    
+    with torch.no_grad():
+        output = model.generate(input_ids, max_length=150, num_return_sequences=1)
+    
+    context = tokenizer.decode(output[0], skip_special_tokens=True)
+    del output
+    gc.collect()
+    torch.cuda.empty_cache()
+    return context
 
 @app.route('/proxy')
 def proxy():
@@ -124,17 +97,9 @@ def match_words():
     finally:
         db.session.close()
 
-def process_context_generation(lyric):
-    with model_context() as (model, tokenizer):
-        input_text = f"Explain the meaning and context of this French lyric in English: {lyric}"
-        input_ids = tokenizer.encode(input_text, return_tensors="pt")
-        with torch.no_grad():
-            output = model.generate(input_ids, max_length=150, num_return_sequences=1)
-        context = tokenizer.decode(output[0], skip_special_tokens=True)
-    return context
-
 @celery.task
 def generate_context_task(lyric):
+    initialize_model()  # Ensure model is loaded
     return process_context_generation(lyric)
 
 @app.route('/api/generate-context', methods=['POST'])
@@ -166,11 +131,6 @@ def get_context_result():
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db.session.remove()
-
-@app.after_request
-def after_request(response):
-    force_garbage_collection()
-    return response
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
