@@ -66,16 +66,18 @@ def initialize_model():
 initialize_model()
 
 def process_context_generation(lyric):
-    input_text = f"Explain the meaning and context of this French lyric in English: {lyric}"
-    input_ids = tokenizer.encode(input_text, return_tensors="pt").to(device)
+    input_text = f"translate French to English: {lyric}"
+    inputs = tokenizer(input_text, return_tensors="pt", padding=True).to(device)
     
     with torch.no_grad():
-        output = model.generate(input_ids, max_length=150, num_return_sequences=1)
+        outputs = model.generate(**inputs, max_length=150, num_return_sequences=1)
     
-    context = tokenizer.decode(output[0], skip_special_tokens=True)
-    del output
+    context = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    del outputs
     gc.collect()
     torch.cuda.empty_cache()
+    
     return context
 
 @app.route('/proxy')
