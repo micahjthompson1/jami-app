@@ -25,10 +25,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Celery
-celery = Celery(app.name)
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+celery = Celery(app.name, broker=REDIS_URL)
+celery.conf.update(app.config)
 celery.conf.update(
-    broker_url=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
-    result_backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
+    broker_url=REDIS_URL,
+    result_backend=REDIS_URL,
     worker_max_tasks_per_child=100,
     worker_max_memory_per_child=1000000,  # 1GB
     worker_concurrency=1  # This sets CELERYD_CONCURRENCY to 1
