@@ -46,9 +46,12 @@ if REDIS_URL.startswith('rediss://'):
     }
 
 class CommonFrenchWord(db.Model):
-    __tablename__ = 'common_words_french_freq50'
+    __tablename__ = 'common_words_fr_freq20'
     id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(255), unique=True, nullable=False)
+    frequency_film = db.Column(db.Float)
+    frequency_book = db.Column(db.Float)
+    frequency_avg = db.Column(db.Float)
 
 # Model initialization
 model = None
@@ -103,7 +106,7 @@ def match_words():
         words = set(re.findall(r'\w+', lyrics.lower()))
         matching_words = db.session.query(CommonFrenchWord.word).filter(
             CommonFrenchWord.word.in_(words)
-        ).order_by(CommonFrenchWord.id).limit(10).all()
+        ).order_by(CommonFrenchWord.frequency_avg).limit(10).all()
         result = [word[0] for word in matching_words]
         return jsonify(result)
     except Exception as e:
