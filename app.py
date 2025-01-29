@@ -6,7 +6,7 @@ from flask_cors import CORS
 import re
 import requests
 import torch
-from transformers import MT5ForConditionalGeneration, MT5Tokenizer
+from transformers import T5ForConditionalGeneration, T5Tokenizer
 import logging
 import gc
 import ssl
@@ -61,8 +61,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def initialize_model():
     global model, tokenizer
     if model is None:
-        model = MT5ForConditionalGeneration.from_pretrained("google/mt5-small")
-        tokenizer = MT5Tokenizer.from_pretrained("google/mt5-small")
+        model = T5ForConditionalGeneration.from_pretrained("t5-base")
+        tokenizer = T5Tokenizer.from_pretrained("t5-base")
         model = model.to(device)
 
 # Call this function when your app starts
@@ -72,23 +72,29 @@ initialize_model()
 def process_context_generation(lyric):
     logger.info(f"Starting context generation for lyric: {lyric}")
     
+    # Translation
     input_text = f"translate French to English: {lyric}"
-    logger.info(f"Formatted input text: {input_text}")
-    
     inputs = tokenizer(input_text, return_tensors="pt", padding=True).to(device)
-    logger.info(f"Tokenized input shape: {inputs.input_ids.shape}")
-    logger.info(f"Tokenized input: {inputs.input_ids}")
+    logger.info(f"Translation input shape: {inputs.input_ids.shape}")
     
-    logger.info("Starting model generation")
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_length=150, num_return_sequences=1)
-    logger.info(f"Raw model output shape: {outputs.shape}")
-    logger.info(f"Raw model output: {outputs}")
+        translation_outputs = model.generate(**inputs, max_length=150, num_return_sequences=1)
+    translated_text = tokenizer.decode(translation_outputs[0], skip_special_tokens=True)
+    logger.info(f"Translated text: {translated_text}")
     
-    context = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    logger.info(f"Decoded context: {context}")
+    # Explanation
+    explain_text = f"explain: {translated_text}"
+    explain_inputs = tokenizer(explain_text, return_tensors="pt", padding=True).to(device)
+    logger.info(f"Explanation input shape: {explain_inputs.input_ids.shape}")
     
-    del outputs
+    with torch.no_grad():
+        explanation_outputs = model.generate(**explain_inputs, max_length=200, num_return_sequences=1)
+    explanation = tokenizer.decode(explanation_outputs[0], skip_special_tokens=True)
+    logger.info(f"Explanation: {explanation}")
+    
+    context = f"Translation: {translated_text}\n\nExplanation: {explanation}"
+    
+    del translation_outputs, explanation_outputs
     gc.collect()
     torch.cuda.empty_cache()
     logger.info("Memory cleared and CUDA cache emptied")
