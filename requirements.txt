@@ -4,8 +4,8 @@ Flask-SQLAlchemy
 flask_cors
 mysql-connector-python
 requests
-transformers
-torch
+transformers>=4.35.0
+torch>=1.13.0
 sentencepiece
 celery==5.3.5
 redis
