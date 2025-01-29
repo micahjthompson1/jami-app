@@ -68,18 +68,30 @@ def initialize_model():
 # Call this function when your app starts
 initialize_model()
 
+# Includes detailed logging for each step
 def process_context_generation(lyric):
-    input_text = f"translate French to English: {lyric}"
-    inputs = tokenizer(input_text, return_tensors="pt", padding=True).to(device)
+    logger.info(f"Starting context generation for lyric: {lyric}")
     
+    input_text = f"translate French to English: {lyric}"
+    logger.info(f"Formatted input text: {input_text}")
+    
+    inputs = tokenizer(input_text, return_tensors="pt", padding=True).to(device)
+    logger.info(f"Tokenized input shape: {inputs.input_ids.shape}")
+    logger.info(f"Tokenized input: {inputs.input_ids}")
+    
+    logger.info("Starting model generation")
     with torch.no_grad():
         outputs = model.generate(**inputs, max_length=150, num_return_sequences=1)
+    logger.info(f"Raw model output shape: {outputs.shape}")
+    logger.info(f"Raw model output: {outputs}")
     
     context = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    logger.info(f"Decoded context: {context}")
     
     del outputs
     gc.collect()
     torch.cuda.empty_cache()
+    logger.info("Memory cleared and CUDA cache emptied")
     
     return context
 
