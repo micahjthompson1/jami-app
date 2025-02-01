@@ -72,34 +72,49 @@ initialize_model()
 def process_context_generation(lyric):
     logger.info(f"Starting context generation for lyric: {lyric}")
     
-    # Translation
-    input_text = f"translate French to English: {lyric}"
+    # Improved translation formatting and generation parameters
+    input_text = f"French: {lyric} English:"
     inputs = tokenizer(input_text, return_tensors="pt", padding=True).to(device)
-    logger.info(f"Translation input shape: {inputs.input_ids.shape}")
+    
+    # Log tokenized input for verification
+    logger.info(f"Tokenized input: {tokenizer.convert_ids_to_tokens(inputs.input_ids[0])}")
     
     with torch.no_grad():
-        translation_outputs = model.generate(**inputs, max_length=150, num_return_sequences=1)
+        translation_outputs = model.generate(
+            **inputs,
+            max_new_tokens=150,  # Changed from max_length
+            num_beams=4,
+            early_stopping=True,
+            repetition_penalty=2.5
+        )
+    
     translated_text = tokenizer.decode(translation_outputs[0], skip_special_tokens=True)
-    logger.info(f"Translated text: {translated_text}")
-    
-    # Explanation
-    explain_text = f"explain: {translated_text}"
-    explain_inputs = tokenizer(explain_text, return_tensors="pt", padding=True).to(device)
-    logger.info(f"Explanation input shape: {explain_inputs.input_ids.shape}")
+    logger.info(f"Raw translation output: {translated_text}")
+
+    # Explanation generation with improved parameters
+    explain_inputs = tokenizer(
+        f"explain: {translated_text}", 
+        return_tensors="pt", 
+        padding=True
+    ).to(device)
     
     with torch.no_grad():
-        explanation_outputs = model.generate(**explain_inputs, max_length=200, num_return_sequences=1)
+        explanation_outputs = model.generate(
+            **explain_inputs,
+            max_new_tokens=200,  # Changed from max_length
+            num_beams=4,
+            early_stopping=True,
+            repetition_penalty=2.5
+        )
+    
     explanation = tokenizer.decode(explanation_outputs[0], skip_special_tokens=True)
-    logger.info(f"Explanation: {explanation}")
     
-    context = f"Translation: {translated_text}\n\nExplanation: {explanation}"
-    
+    # Cleanup
     del translation_outputs, explanation_outputs
     gc.collect()
     torch.cuda.empty_cache()
-    logger.info("Memory cleared and CUDA cache emptied")
     
-    return context
+    return f"Translation: {translated_text}\n\nExplanation: {explanation}"
 
 @app.route('/proxy')
 def proxy():
