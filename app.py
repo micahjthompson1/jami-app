@@ -17,11 +17,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# Database configuration with SSL
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING') + (
-    "?ssl_ca=/etc/ssl/certs/ca-certificates.crt"
-    "&ssl_verify_identity=true"
-)
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
