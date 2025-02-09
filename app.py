@@ -59,8 +59,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def initialize_model():
     global model, tokenizer
     if model is None:
-        model = T5ForConditionalGeneration.from_pretrained("t5-base")
-        tokenizer = T5Tokenizer.from_pretrained("t5-base")
+        model = T5ForConditionalGeneration.from_pretrained("t5-small")  # Better for translation
+        tokenizer = T5Tokenizer.from_pretrained("t5-small")
         model = model.to(device)
 
 # Call this function when your app starts
@@ -70,9 +70,9 @@ initialize_model()
 def process_context_generation(lyric):
     logger.info(f"Starting context generation for lyric: {lyric}")
     
-    # Improved translation formatting and generation parameters
-    input_text = f"French: {lyric} English:"
-    inputs = tokenizer(input_text, return_tensors="pt", padding=True).to(device)
+    # Translation formatting and generation parameters
+    input_text = f"translate French to English: {lyric}"
+    inputs = tokenizer(input_text, return_tensors="pt", padding=True, max_length=512).to(device)
     
     # Log tokenized input for verification
     logger.info(f"Tokenized input: {tokenizer.convert_ids_to_tokens(inputs.input_ids[0])}")
@@ -80,8 +80,8 @@ def process_context_generation(lyric):
     with torch.no_grad():
         translation_outputs = model.generate(
             **inputs,
-            max_new_tokens=150,  # Changed from max_length
-            num_beams=4,
+            max_new_tokens=150,
+            num_beams=5,
             early_stopping=True,
             repetition_penalty=2.5
         )
@@ -89,30 +89,13 @@ def process_context_generation(lyric):
     translated_text = tokenizer.decode(translation_outputs[0], skip_special_tokens=True)
     logger.info(f"Raw translation output: {translated_text}")
 
-    # Explanation generation with improved parameters
-    explain_inputs = tokenizer(
-        f"explain: {translated_text}", 
-        return_tensors="pt", 
-        padding=True
-    ).to(device)
-    
-    with torch.no_grad():
-        explanation_outputs = model.generate(
-            **explain_inputs,
-            max_new_tokens=200,  # Changed from max_length
-            num_beams=4,
-            early_stopping=True,
-            repetition_penalty=2.5
-        )
-    
-    explanation = tokenizer.decode(explanation_outputs[0], skip_special_tokens=True)
-    
     # Cleanup
-    del translation_outputs, explanation_outputs
+    del translation_outputs
     gc.collect()
     torch.cuda.empty_cache()
     
-    return f"Translation: {translated_text}\n\nExplanation: {explanation}"
+    return f"French: {lyric}\nEnglish: {translated_text}"
+
 
 @app.route('/proxy')
 def proxy():
