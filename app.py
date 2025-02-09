@@ -70,8 +70,8 @@ initialize_model()
 def process_context_generation(lyric):
     logger.info(f"Starting context generation for lyric: {lyric}")
     
-    inputs = tokenizer(lyric, return_tensors="pt", padding=True, max_length=512).to(device)
-    
+    inputs = tokenizer(input_text, return_tensors="pt", padding='max_length', max_length=512).to(device)
+
     logger.info(f"Tokenized input: {tokenizer.convert_ids_to_tokens(inputs.input_ids[0])}")
     
     with torch.no_grad():
