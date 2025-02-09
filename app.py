@@ -6,7 +6,7 @@ from flask_cors import CORS
 import re
 import requests
 import torch
-from transformers import T5ForConditionalGeneration, T5Tokenizer
+from transformers import MarianMTModel, MarianTokenizer
 import logging
 import gc
 import ssl
@@ -59,8 +59,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def initialize_model():
     global model, tokenizer
     if model is None:
-        model = T5ForConditionalGeneration.from_pretrained("t5-small")  # Better for translation
-        tokenizer = T5Tokenizer.from_pretrained("t5-small")
+        model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+        tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
         model = model.to(device)
 
 # Call this function when your app starts
@@ -70,17 +70,14 @@ initialize_model()
 def process_context_generation(lyric):
     logger.info(f"Starting context generation for lyric: {lyric}")
     
-    # Translation formatting and generation parameters
-    input_text = f"translate French to English: {lyric}"
-    inputs = tokenizer(input_text, return_tensors="pt", padding=True, max_length=512).to(device)
+    inputs = tokenizer(lyric, return_tensors="pt", padding=True, max_length=512).to(device)
     
-    # Log tokenized input for verification
     logger.info(f"Tokenized input: {tokenizer.convert_ids_to_tokens(inputs.input_ids[0])}")
     
     with torch.no_grad():
         translation_outputs = model.generate(
             **inputs,
-            max_new_tokens=150,
+            max_length=512,
             num_beams=5,
             early_stopping=True,
             repetition_penalty=2.5
@@ -95,7 +92,6 @@ def process_context_generation(lyric):
     torch.cuda.empty_cache()
     
     return f"French: {lyric}\nEnglish: {translated_text}"
-
 
 @app.route('/proxy')
 def proxy():
