@@ -22,9 +22,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Celery
+# Celery configuration
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-
 celery = Celery(app.name, broker=REDIS_URL)
 celery.conf.update(app.config)
 celery.conf.update(
@@ -32,7 +31,7 @@ celery.conf.update(
     result_backend=REDIS_URL,
     worker_max_tasks_per_child=100,
     worker_max_memory_per_child=1000000,  # 1GB
-    worker_concurrency=1  # This sets CELERYD_CONCURRENCY to 1
+    worker_concurrency=1
 )
 
 if REDIS_URL.startswith('rediss://'):
@@ -62,30 +61,44 @@ def initialize_model():
         model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
         tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
         model = model.to(device)
+        model.eval()  # Set model to evaluation mode
 
-# Call this function when your app starts
+# Initialize model at startup
 initialize_model()
 
-# Includes detailed logging for each step
-def process_context_generation(lyric):
-    logger.info(f"Starting context generation for lyric: {lyric}")
-    
-    inputs = tokenizer(lyric, return_tensors="pt", padding=True).to(device)
-    
-    logger.info(f"Tokenized input: {tokenizer.convert_ids_to_tokens(inputs.input_ids[0])}")
-    
-    with torch.no_grad():
-        translation_outputs = model.generate(**inputs, max_length=512, num_beams=5, early_stopping=True)
-    
-    translated_text = tokenizer.decode(translation_outputs[0], skip_special_tokens=True)
-    logger.info(f"Raw translation output: {translated_text}")
+@celery.task(bind=True, max_retries=3)
+def generate_context_task(self, lyric):
+    try:
+        return process_context_generation(lyric)
+    except Exception as e:
+        logger.error(f"Task {self.request.id} failed: {str(e)}", exc_info=True)
+        self.retry(exc=e, countdown=60)
 
-    # Cleanup
-    del translation_outputs
-    gc.collect()
-    torch.cuda.empty_cache()
+def process_context_generation(lyric: str) -> str:
+    try:
+        logger.info(f"Starting context generation for lyric: {lyric}")
+        inputs = tokenizer(lyric, return_tensors="pt", padding=True, 
+                         truncation=True, max_length=256).to(device)
+        
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=256,
+                num_beams=5,
+                early_stopping=True,
+                length_penalty=0.6
+            )
+            translated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            logger.info("Translation completed successfully")
+            return f"French: {lyric}\nEnglish: {translated_text}"
     
-    return f"French: {lyric}\nEnglish: {translated_text}"
+    except Exception as e:
+        logger.error(f"Error in translation: {str(e)}", exc_info=True)
+        raise
+    finally:
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
 
 @app.route('/proxy')
 def proxy():
@@ -107,10 +120,12 @@ def match_words():
         lyrics = request.json.get('lyrics')
         if not lyrics:
             return jsonify({'error': 'Lyrics are required'}), 400
+
         words = set(re.findall(r'\w+', lyrics.lower()))
         matching_words = db.session.query(CommonFrenchWord.word).filter(
             CommonFrenchWord.word.in_(words)
         ).order_by(CommonFrenchWord.frequency_avg).limit(10).all()
+        
         result = [word[0] for word in matching_words]
         return jsonify(result)
     except Exception as e:
@@ -119,17 +134,13 @@ def match_words():
     finally:
         db.session.close()
 
-@celery.task
-def generate_context_task(lyric):
-    initialize_model()  # Ensure model is loaded
-    return process_context_generation(lyric)
-
 @app.route('/api/generate-context', methods=['POST'])
 def generate_context():
     try:
         lyric = request.json.get('lyric')
         if not lyric:
             return jsonify({'error': 'Lyric is required'}), 400
+            
         task = generate_context_task.delay(lyric)
         return jsonify({'task_id': task.id}), 202
     except Exception as e:
@@ -141,7 +152,7 @@ def get_context_result():
     task_id = request.args.get('task_id')
     if not task_id:
         return jsonify({'error': 'Task ID is required'}), 400
-    
+        
     try:
         task = generate_context_task.AsyncResult(task_id)
         if task.state == 'PENDING':
@@ -155,7 +166,6 @@ def get_context_result():
     except Exception as e:
         logger.error(f"Error in get_context_result: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
-
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
