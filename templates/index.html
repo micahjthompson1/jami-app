@@ -1,95 +1,164 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>wordNab</title>
     <style>
+        /* Base Styles */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f0f0f0;
+            background-color: #f0f2f5;
         }
-        h1, h2 {
-            color: #333;
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        button {
-            background-color: #1DB954;
-            border: none;
+
+        /* Error and Status Styles */
+        .alert {
+            padding: 15px;
+            background: #ffebee;
+            color: #b71c1c;
+            margin: 20px 0;
+            border-radius: 4px;
+            display: none;
+        }
+
+        #system-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.9);
             color: white;
-            padding: 10px 20px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 4px 2px;
-            cursor: pointer;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+        }
+
+        .status-icon {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        /* Translation Layout */
+        .translation-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .translation-pane {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .translation-results {
+            display: grid;
+            gap: 20px;
+        }
+
+        .result-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .translation-output {
+            min-height: 150px;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #dee2e6;
             border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
         }
-        #recently-played {
-            margin-top: 20px;
+
+        /* Existing Spotify Styles */
+        .spotify-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+
         .collapsible-table {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 15px;
         }
-        .collapsible-table th, .collapsible-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        .collapsible-table th {
-            background-color: #f2f2f2;
-        }
-        .song-row {
-            cursor: pointer;
-        }
-        .song-row:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .song-row.expanded {
-            background-color: #e6f3ff;
-        }
-        .context-cell {
-            max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .song-row.expanded .context-cell {
-            white-space: normal;
-        }
-        .generate-context-btn {
-            background-color: #4CAF50;
-            border: none;
+
+        /* Button Styles */
+        button {
+            background-color: #1DB954;
             color: white;
-            padding: 5px 10px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            margin: 4px 2px;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
             cursor: pointer;
+            margin: 10px 0;
+        }
+
+        button:hover {
+            background-color: #1ED760;
         }
     </style>
 </head>
-    <body>
-        <h1>wordNab</h1>
-        <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
-        <div id="recently-played"></div>
-        <button id="download-csv">Download Word Data (CSV)</button>
+<body>
+    <!-- Same HTML body content as previously provided -->
+    <div id="error-message" class="alert" style="display: none;"></div>
+    
+    <div id="system-status">
+        <span class="status-icon"></span>
+        <span class="status-text">Checking system status...</span>
+    </div>
 
-        <script src="static/main.js"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const accessToken = getAccessTokenFromUrl();
-                if (accessToken) {
-                    fetchRecentlyPlayed(accessToken).then(tracks => {
-                        displayTracksAndWords(tracks, accessToken);
-                    });
-                }
-            });
-        </script>
-    </body>
+    <div class="container">
+        <!-- Translation Section -->
+        <div class="translation-container">
+            <div class="translation-pane">
+                <h3>French Lyrics</h3>
+                <textarea id="lyric-input" placeholder="Enter French lyrics..."></textarea>
+                <button onclick="handleGenerateContext()">Generate Translation</button>
+            </div>
+            
+            <div class="translation-results">
+                <div class="result-box">
+                    <h4>Original French</h4>
+                    <div id="french-text" class="translation-output"></div>
+                </div>
+                <div class="result-box">
+                    <h4>English Translation</h4>
+                    <div id="english-text" class="translation-output"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Played Section -->
+        <div id="recently-played" class="spotify-section">
+            <h2>Recently Played Tracks</h2>
+            <button onclick="connectSpotify()">Connect to Spotify</button>
+            <div class="table-container"></div>
+        </div>
+
+        <!-- Word Bank Section -->
+        <div class="wordbank-section">
+            <h2>Common French Words</h2>
+            <div id="common-words"></div>
+            <button onclick="exportWordData()">Download Word Data (CSV)</button>
+        </div>
+    </div>
+
+    <script src="/static/main.js"></script>
+</body>
 </html>
