@@ -1,6 +1,34 @@
 const clientId = '74fd0dba781e434dad39a8494e5426b9';
 const redirectUri = 'https://wordnab.onrender.com/';
 const scopes = 'user-read-recently-played';
+const MAX_POLL_ATTEMPTS = 60;  // Increased from 30
+const POLL_INTERVAL = 10000;   // 10 seconds interval
+
+// Health check on startup
+document.addEventListener('DOMContentLoaded', () => {
+    checkBackendHealth();
+});
+
+async function checkBackendHealth() {
+    try {
+        const response = await fetch('/api/health');
+        const health = await response.json();
+        if (!health.model_loaded) {
+            showError('Translation engine is not ready');
+        }
+    } catch (error) {
+        showError('Backend service unavailable');
+    }
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('error-message');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 5000);
+}
 
 function getSpotifyAuthUrl() {
     const url = 'https://accounts.spotify.com/authorize';
@@ -100,104 +128,149 @@ async function getContextResult(taskId) {
     }
 }
 
-async function pollContextResult(taskId, maxAttempts = 30, interval = 5000) {
-  for (let i = 0; i < maxAttempts; i++) {
-    const result = await getContextResult(taskId);
-    if (result.status === 'completed') {
-      return result.context;
-    } else if (result.status === 'failed') {
-      throw new Error('Context generation failed');
-    } else if (result.status === 'pending') {
-      // Continue polling
-    } else {
-      throw new Error('Unexpected status received');
+// Updated polling with new response format
+async function pollContextResult(taskId) {
+    for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+        try {
+            const response = await fetch(`/api/get-context-result/?task_id=${taskId}`);
+            const data = await response.json();
+            
+            if (data.status === 'completed') {
+                return {
+                    french: data.context.french,
+                    english: data.context.english
+                };
+            } else if (data.status === 'failed') {
+                throw new Error(data.error || 'Context generation failed');
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+        } catch (error) {
+            throw new Error(`Polling failed: ${error.message}`);
+        }
     }
-    await new Promise(resolve => setTimeout(resolve, interval));
-  }
-  throw new Error('Max polling attempts reached');
+    throw new Error('Max polling attempts reached');
 }
 
+// Updated context generation handler
+async function handleGenerateContext() {
+    try {
+        const lyric = document.getElementById('lyric-input').value;
+        
+        if (!lyric.trim()) {
+            showError('Please enter some text to translate');
+            return;
+        }
 
+        const response = await fetch('/api/generate-context', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ lyric }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            showError(errorData.error || 'Translation failed');
+            return;
+        }
+
+        const { task_id } = await response.json();
+        const result = await pollContextResult(task_id);
+        
+        // Display structured results
+        document.getElementById('french-text').textContent = result.french;
+        document.getElementById('english-text').textContent = result.english;
+
+    } catch (error) {
+        showError(`Error: ${error.message}`);
+    }
+}
+
+// Updated track display with error handling
 async function displayTracksAndWords(tracks, accessToken) {
     const container = document.getElementById('recently-played');
     container.innerHTML = '';
-    const header = document.createElement('h2');
-    header.textContent = "Recently Played Tracks:";
-    container.appendChild(header);
+    
+    try {
+        const header = document.createElement('h2');
+        header.textContent = "Recently Played Tracks:";
+        container.appendChild(header);
 
-    const table = document.createElement('table');
-    table.className = 'collapsible-table';
-    const tableHeader = `
-        <tr>
-            <th>Song</th>
-            <th>Common Word</th>
-            <th>Context</th>
-        </tr>
-    `;
-    table.innerHTML = tableHeader;
-    container.appendChild(table);
+        const table = document.createElement('table');
+        table.className = 'collapsible-table';
+        
+        // Table header remains the same
+        table.innerHTML = `
+            <tr>
+                <th>Track</th>
+                <th>Artist</th>
+                <th>Lyrics Preview</th>
+                <th>Common Words</th>
+                <th>Context</th>
+            </tr>
+        `;
 
-    for (const item of tracks) {
-        const track = item.track;
-        const songName = track.name;
-        const artistName = track.artists.map(artist => artist.name).join(', ');
+        for (const item of tracks) {
+            const track = item.track;
+            const row = document.createElement('tr');
+            
+            // Track and artist cells remain the same
+            row.innerHTML = `
+                <td>${track.name}</td>
+                <td>${track.artists.map(artist => artist.name).join(', ')}</td>
+                <td class="lyrics-cell"></td>
+                <td class="words-cell"></td>
+                <td class="context-cell"></td>
+            `;
 
-        const lyrics = await fetchLyrics(artistName, songName);
-        if (lyrics) {
-            const commonWords = await fetchCommonFrenchWords(lyrics);
-
-            for (const word of commonWords) {
-                const row = table.insertRow();
-                row.className = 'song-row';
-                row.innerHTML = `
-                    <td>${songName} - ${artistName}</td>
-                    <td>${word}</td>
-                    <td class="context-cell">
-                        <button class="generate-context-btn">Generate Context</button>
-                        <div class="context-content" style="display: none;"></div>
-                    </td>
-                `;
-
-                const generateContextBtn = row.querySelector('.generate-context-btn');
-                const contextContent = row.querySelector('.context-content');
-
-                generateContextBtn.onclick = async () => {
-                    try {
-                        generateContextBtn.disabled = true;
-                        generateContextBtn.textContent = 'Generating...';
-
-                        // Find the lyric containing the common word
-                        const lyricWithWord = lyrics.split('\n').find(line => line.toLowerCase().includes(word.toLowerCase()));
-
-                        if (lyricWithWord) {
-                            const taskId = await fetchContextForLyric(lyricWithWord);
-                            const context = await pollContextResult(taskId);
-                            contextContent.textContent = context;
-                            contextContent.style.display = 'block';
-                            generateContextBtn.style.display = 'none';
-                        } else {
-                            contextContent.textContent = 'Lyric containing the word not found.';
-                            contextContent.style.display = 'block';
-                            generateContextBtn.style.display = 'none';
-                        }
-                    } catch (error) {
-                        console.error('Error generating context:', error);
-                        contextContent.textContent = 'Error generating context';
-                        contextContent.style.display = 'block';
-                    } finally {
-                        generateContextBtn.disabled = false;
-                        generateContextBtn.textContent = 'Generate Context';
-                    }
-                };
-
-                row.addEventListener('click', (event) => {
-                    if (!event.target.classList.contains('generate-context-btn')) {
-                        row.classList.toggle('expanded');
-                        contextContent.style.display = contextContent.style.display === 'none' ? 'block' : 'none';
-                    }
-                });
+            // Lyrics handling with error feedback
+            const lyricsCell = row.querySelector('.lyrics-cell');
+            const wordsCell = row.querySelector('.words-cell');
+            const contextCell = row.querySelector('.context-cell');
+            
+            try {
+                const lyrics = await fetchLyrics(track.artists[0].name, track.name);
+                if (lyrics) {
+                    lyricsCell.textContent = `${lyrics.substring(0, 100)}...`;
+                    
+                    const commonWords = await fetchCommonFrenchWords(lyrics);
+                    wordsCell.innerHTML = commonWords.map(word => 
+                        `<button class="word-btn" onclick="handleWordClick('${word}')">${word}</button>`
+                    ).join(' ');
+                }
+            } catch (error) {
+                lyricsCell.textContent = 'Lyrics unavailable';
+                console.error('Lyrics error:', error);
             }
+
+            // Context generation button
+            const contextButton = document.createElement('button');
+            contextButton.textContent = 'Generate Context';
+            contextButton.onclick = async () => {
+                try {
+                    contextButton.disabled = true;
+                    const lyric = track.name; // Or use selected lyrics
+                    const result = await handleGenerateContext(lyric);
+                    contextCell.innerHTML = `
+                        <div class="french-text">${result.french}</div>
+                        <div class="english-text">${result.english}</div>
+                    `;
+                } catch (error) {
+                    showError(`Context generation failed: ${error.message}`);
+                } finally {
+                    contextButton.disabled = false;
+                }
+            };
+            contextCell.appendChild(contextButton);
+
+            table.appendChild(row);
         }
+
+        container.appendChild(table);
+    } catch (error) {
+        showError(`Failed to load tracks: ${error.message}`);
     }
 }
 
