@@ -10,8 +10,6 @@ from transformers import MarianMTModel, MarianTokenizer
 import logging
 import gc
 import ssl
-import time
-from typing import List
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,14 +29,18 @@ celery.conf.update(app.config)
 celery.conf.update(
     broker_url=REDIS_URL,
     result_backend=REDIS_URL,
-    worker_max_tasks_per_child=50,  # Reduced for memory safety
-    worker_max_memory_per_child=500000,  # 500MB
+    worker_max_tasks_per_child=100,
+    worker_max_memory_per_child=1000000,  # 1GB
     worker_concurrency=1
 )
 
 if REDIS_URL.startswith('rediss://'):
-    celery.conf.broker_use_ssl = {'ssl_cert_reqs': ssl.CERT_NONE}
-    celery.conf.redis_backend_use_ssl = {'ssl_cert_reqs': ssl.CERT_NONE}
+    celery.conf.broker_use_ssl = {
+        'ssl_cert_reqs': ssl.CERT_NONE
+    }
+    celery.conf.redis_backend_use_ssl = {
+        'ssl_cert_reqs': ssl.CERT_NONE
+    }
 
 class CommonFrenchWord(db.Model):
     __tablename__ = 'common_words_fr_freq20'
@@ -51,108 +53,52 @@ class CommonFrenchWord(db.Model):
 # Model initialization
 model = None
 tokenizer = None
-
-def get_device():
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def initialize_model():
     global model, tokenizer
     if model is None:
-        logger.info("Initializing translation model...")
-        try:
-            model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
-            tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
-            device = get_device()
-            model = model.to(device)
-            model.eval()
-            logger.info(f"Model loaded on {device}")
-            if torch.cuda.is_available():
-                logger.info(f"GPU Memory: {torch.cuda.memory_allocated()/1024**2:.2f}MB allocated")
-        except Exception as e:
-            logger.error(f"Model initialization failed: {str(e)}")
-            raise
+        model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+        tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+        model = model.to(device)
+        model.eval()  # Set model to evaluation mode
 
-# Celery worker startup hook
-@celery.on_after_configure.connect
-def setup_model(sender, **kwargs):
-    initialize_model()
+# Initialize model at startup
+initialize_model()
 
 @celery.task(bind=True, max_retries=3)
 def generate_context_task(self, lyric):
     try:
-        start_time = time.time()
-        logger.info(f"Starting translation task {self.request.id}")
-        
-        # Input validation
-        if not lyric.strip():
-            raise ValueError("Empty input string")
-            
-        # Token length check
-        tokens = tokenizer.tokenize(lyric)
-        if len(tokens) > 256:
-            lyric = tokenizer.convert_tokens_to_string(tokens[:256])
-            logger.warning("Input truncated to 256 tokens")
+        return process_context_generation(lyric)
+    except Exception as e:
+        logger.error(f"Task {self.request.id} failed: {str(e)}", exc_info=True)
+        self.retry(exc=e, countdown=60)
 
-        # Tokenization with proper MarianMT formatting
-        inputs = tokenizer(
-            [lyric],
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            max_length=256,
-            add_special_tokens=True
-        ).to(get_device())
+def process_context_generation(lyric: str) -> str:
+    try:
+        logger.info(f"Starting context generation for lyric: {lyric}")
+        inputs = tokenizer(lyric, return_tensors="pt", padding=True, 
+                         truncation=True, max_length=256).to(device)
         
-        # Model generation with MarianMT parameters
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
-                max_length=512,
-                num_beams=4,
+                max_new_tokens=256,
+                num_beams=5,
                 early_stopping=True,
-                no_repeat_ngram_size=3,
-                length_penalty=0.6,
-                decoder_start_token_id=model.config.decoder_start_token_id
+                length_penalty=0.6
             )
-            
-        translated_text = tokenizer.decode(
-            outputs[0],
-            skip_special_tokens=True,
-            clean_up_tokenization_spaces=True
-        )
-        
-        logger.info(f"Translation completed in {time.time()-start_time:.2f}s")
-        return {
-            "french": lyric,
-            "english": translated_text
-        }
-        
+            translated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            logger.info("Translation completed successfully")
+            return f"French: {lyric}\nEnglish: {translated_text}"
+    
     except Exception as e:
-        logger.error(f"Translation failed: {str(e)}")
-        self.retry(exc=e, countdown=60)
+        logger.error(f"Error in translation: {str(e)}", exc_info=True)
+        raise
     finally:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         gc.collect()
-
-@app.route('/api/health')
-def health_check():
-    return jsonify({
-        "status": "healthy",
-        "model_loaded": model is not None,
-        "gpu_available": torch.cuda.is_available(),
-        "gpu_memory": f"{torch.cuda.memory_allocated()/1024**2:.2f}MB" if torch.cuda.is_available() else "N/A"
-    })
-
-@app.route('/api/test-tokenizer', methods=['POST'])
-def test_tokenizer():
-    lyric = request.json.get('lyric', 'Bonjour le monde')
-    tokens = tokenizer.tokenize(lyric)
-    return jsonify({
-        'tokens': tokens,
-        'token_count': len(tokens),
-        'device': str(get_device())
-    })
 
 @app.route('/proxy')
 def proxy():
@@ -226,6 +172,5 @@ def shutdown_session(exception=None):
     db.session.remove()
 
 if __name__ == '__main__':
-    initialize_model()
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=False)
