@@ -6,7 +6,7 @@ from flask_cors import CORS
 import re
 import requests
 import torch
-from transformers import MarianMTModel, MarianTokenizer
+from transformers import MT5ForConditionalGeneration, T5Tokenizer
 import logging
 import gc
 import ssl
@@ -58,10 +58,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def initialize_model():
     global model, tokenizer
     if model is None:
-        model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
-        tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+        model_name = "staka/french-to-english-mt5"  # Fine-tuned MT5 model
+        model = MT5ForConditionalGeneration.from_pretrained(model_name)
+        tokenizer = T5Tokenizer.from_pretrained(model_name)
         model = model.to(device)
-        model.eval()  # Set model to evaluation mode
+        model.eval()
 
 # Initialize model at startup
 initialize_model()
@@ -77,20 +78,35 @@ def generate_context_task(self, lyric):
 def process_context_generation(lyric: str) -> str:
     try:
         logger.info(f"Starting context generation for lyric: {lyric}")
-        inputs = tokenizer(lyric, return_tensors="pt", padding=True, 
-                         truncation=True, max_length=256).to(device)
         
+        # Format input for fine-tuned model
+        input_text = f"translate French to English: {lyric}"
+        
+        inputs = tokenizer(
+            input_text,
+            return_tensors="pt",
+            padding="max_length",
+            truncation=True,
+            max_length=384  # Increased for better context
+        ).to(device)
+
         with torch.no_grad():
             outputs = model.generate(
-                **inputs,
-                max_new_tokens=256,
+                input_ids=inputs.input_ids,
+                attention_mask=inputs.attention_mask,
+                max_length=512,
                 num_beams=5,
-                early_stopping=True,
-                length_penalty=0.6
+                repetition_penalty=1.2,  # Added for better quality
+                no_repeat_ngram_size=3
             )
-            translated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-            logger.info("Translation completed successfully")
-            return f"French: {lyric}\nEnglish: {translated_text}"
+
+        translated_text = tokenizer.decode(
+            outputs[0],
+            skip_special_tokens=True
+        )
+        
+        logger.info("Translation completed successfully")
+        return f"French: {lyric}\nEnglish: {translated_text}"
     
     except Exception as e:
         logger.error(f"Error in translation: {str(e)}", exc_info=True)
