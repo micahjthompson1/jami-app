@@ -100,7 +100,7 @@ async function getContextResult(taskId) {
     }
 }
 
-async function pollContextResult(taskId, maxAttempts = 30, interval = 5000) {
+async function pollContextResult(taskId, maxAttempts = 60, interval = 10000) {
   for (let i = 0; i < maxAttempts; i++) {
     const result = await getContextResult(taskId);
     if (result.status === 'completed') {
