@@ -30,7 +30,7 @@ celery.conf.update(
     broker_url=REDIS_URL,
     result_backend=REDIS_URL,
     worker_max_tasks_per_child=100,
-    worker_max_memory_per_child=1000000,  # 1GB
+    worker_max_memory_per_child=800000,  # 800MB
     worker_concurrency=1
 )
 
@@ -83,8 +83,8 @@ def process_context_generation(lyric: str) -> str:
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
-                max_new_tokens=256,
-                num_beams=5,
+                max_new_tokens=128,
+                num_beams=2,
                 early_stopping=True,
                 length_penalty=0.6
             )
