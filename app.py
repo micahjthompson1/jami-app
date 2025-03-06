@@ -6,7 +6,7 @@ from flask_cors import CORS
 import re
 import requests
 import torch
-from transformers import MarianMTModel, MarianTokenizer
+from google.cloud import translate_v2 as translate
 import logging
 import gc
 import ssl
@@ -16,11 +16,6 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
-
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
 
 # Celery configuration
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
@@ -42,6 +37,14 @@ if REDIS_URL.startswith('rediss://'):
         'ssl_cert_reqs': ssl.CERT_NONE
     }
 
+# Translation API configuration
+translate_client = translate.Client()
+
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
 class CommonFrenchWord(db.Model):
     __tablename__ = 'common_words_fr_freq20'
     id = db.Column(db.Integer, primary_key=True)
@@ -49,22 +52,6 @@ class CommonFrenchWord(db.Model):
     frequency_film = db.Column(db.Float)
     frequency_book = db.Column(db.Float)
     frequency_avg = db.Column(db.Float)
-
-# Model initialization
-model = None
-tokenizer = None
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-def initialize_model():
-    global model, tokenizer
-    if model is None:
-        model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
-        tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
-        model = model.to(device)
-        model.eval()  # Set model to evaluation mode
-
-# Initialize model at startup
-initialize_model()
 
 @celery.task(bind=True, max_retries=3)
 def generate_context_task(self, lyric):
@@ -77,28 +64,25 @@ def generate_context_task(self, lyric):
 def process_context_generation(lyric: str) -> str:
     try:
         logger.info(f"Starting context generation for lyric: {lyric}")
-        inputs = tokenizer(lyric, return_tensors="pt", padding=True, 
-                         truncation=True, max_length=256).to(device)
         
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=128,
-                num_beams=2,
-                early_stopping=True,
-                length_penalty=0.6
-            )
-            translated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-            logger.info("Translation completed successfully")
-            return f"French: {lyric}\nEnglish: {translated_text}"
-    
+        # Detect language (optional, as we know it's French)
+        detection = translate_client.detect_language(lyric)
+        source_language = detection['language']
+        
+        # Translate to English
+        translation = translate_client.translate(
+            lyric,
+            target_language='en',
+            source_language=source_language
+        )
+        
+        translated_text = translation['translatedText']
+        
+        logger.info("Translation completed successfully")
+        return f"French: {lyric}\nEnglish: {translated_text}"
     except Exception as e:
         logger.error(f"Error in translation: {str(e)}", exc_info=True)
         raise
-    finally:
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        gc.collect()
 
 @app.route('/proxy')
 def proxy():
@@ -140,11 +124,17 @@ def generate_context():
         lyric = request.json.get('lyric')
         if not lyric:
             return jsonify({'error': 'Lyric is required'}), 400
-            
+        
         task = generate_context_task.delay(lyric)
         return jsonify({'task_id': task.id}), 202
+    except translate.exceptions.GoogleAPIError as e:
+        logger.error(f"Google Translate API error: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Translation service unavailable'}), 503
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Network error occurred'}), 503
     except Exception as e:
-        logger.error(f"Error in generate_context: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error in generate_context: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/get-context-result/', methods=['GET'])
