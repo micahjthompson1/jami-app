@@ -5,7 +5,6 @@ import os
 from flask_cors import CORS
 import re
 import requests
-import torch
 from google.cloud import translate_v2 as translate
 import logging
 import gc
@@ -79,7 +78,7 @@ def process_context_generation(lyric: str) -> str:
         translated_text = translation['translatedText']
         
         logger.info("Translation completed successfully")
-        return f"French: {lyric}\nEnglish: {translated_text}"
+        return f'This word is used in the lyric, "{lyric}", which translates to "{translated_text}" in English.'
     except Exception as e:
         logger.error(f"Error in translation: {str(e)}", exc_info=True)
         raise
