@@ -106,13 +106,14 @@ def match_words():
         
         words = set(re.findall(r'\w+', lyrics.lower()))
         
-        # Convert words set to a list
-        words_list = list(words)
-        
-        # Use a different approach for filtering
-        matching_words = db.session.query(CommonFrenchWord.word).filter(
-            CommonFrenchWord.word.in_(words_list)
-        ).order_by(CommonFrenchWord.frequency_avg).limit(10).all()
+        # Use OR conditions instead of .in_()
+        conditions = [CommonFrenchWord.word == word for word in words]
+        if conditions:
+            matching_words = db.session.query(CommonFrenchWord.word).filter(
+                db.or_(*conditions)
+            ).order_by(db.desc(CommonFrenchWord.frequency_avg)).limit(10).all()
+        else:
+            matching_words = []
         
         result = [word[0] for word in matching_words]
         return jsonify(result)
