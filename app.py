@@ -103,10 +103,15 @@ def match_words():
         lyrics = request.json.get('lyrics')
         if not lyrics:
             return jsonify({'error': 'Lyrics are required'}), 400
-
+        
         words = set(re.findall(r'\w+', lyrics.lower()))
+        
+        # Convert words set to a list
+        words_list = list(words)
+        
+        # Use a different approach for filtering
         matching_words = db.session.query(CommonFrenchWord.word).filter(
-            CommonFrenchWord.word.in_(words)
+            CommonFrenchWord.word.in_(words_list)
         ).order_by(CommonFrenchWord.frequency_avg).limit(10).all()
         
         result = [word[0] for word in matching_words]
