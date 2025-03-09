@@ -9,6 +9,7 @@ from google.cloud import translate_v2 as translate
 import logging
 import gc
 import ssl
+from urllib.parse import parse_qsl, urlencode, urlparse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,8 +41,30 @@ if REDIS_URL.startswith('rediss://'):
 translate_client = translate.Client()
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Before setting up SQLAlchemy
+db_url = os.environ.get('DB_CONNECTION_STRING')
+if db_url:
+    # Parse the URL to handle boolean parameters correctly
+    parsed = urlparse(db_url)
+    query_params = dict(parse_qsl(parsed.query))
+    
+    # List of parameters that should be booleans
+    bool_params = ['ssl_verify_identity', 'use_pure', 'autocommit', 'raise_on_warnings', 
+                   'get_warnings', 'ssl_verify_cert', 'consume_results']
+    
+    for param in bool_params:
+        if param in query_params:
+            value = query_params[param].lower()
+            if value in ('true', 'yes', '1'):
+                query_params[param] = True
+            elif value in ('false', 'no', '0'):
+                query_params[param] = False
+    
+    # Reconstruct the URL
+    new_query = urlencode(query_params)
+    new_url = parsed._replace(query=new_query).geturl()
+    app.config['SQLALCHEMY_DATABASE_URI'] = new_url
+
 db = SQLAlchemy(app)
 
 class CommonFrenchWord(db.Model):
