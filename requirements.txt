@@ -3,7 +3,7 @@ gunicorn
 Flask-SQLAlchemy==3.1.0
 SQLAlchemy==2.0.38
 flask_cors
-mysql-connector-python
+mysql-connector-python==9.1.0
 requests
 celery==5.3.5
 redis
