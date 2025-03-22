@@ -39,33 +39,8 @@ if REDIS_URL.startswith('rediss://'):
 # Translation API configuration
 translate_client = translate.Client()
 
-from urllib.parse import parse_qsl, urlencode, urlparse
-
-# Before setting up SQLAlchemy
-db_url = os.environ.get('DB_CONNECTION_STRING')
-if db_url:
-    # Parse the URL to handle boolean parameters correctly
-    parsed = urlparse(db_url)
-    query_params = dict(parse_qsl(parsed.query))
-    
-    # List of parameters that should be booleans
-    bool_params = ['ssl_verify_identity', 'use_pure', 'autocommit', 'raise_on_warnings', 
-                   'get_warnings', 'ssl_verify_cert', 'consume_results']
-    
-    for param in bool_params:
-        if param in query_params:
-            value = query_params[param].lower()
-            if value in ('true', 'yes', '1'):
-                query_params[param] = True
-            elif value in ('false', 'no', '0'):
-                query_params[param] = False
-    
-    # Reconstruct the URL
-    new_query = urlencode(query_params)
-    new_url = parsed._replace(query=new_query).geturl()
-    app.config['SQLALCHEMY_DATABASE_URI'] = new_url
-
-#Setup SQLAlchemy
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
