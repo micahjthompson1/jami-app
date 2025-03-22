@@ -8,3 +8,5 @@ requests
 celery==5.3.5
 redis
 google-cloud-translate
+pymysql==1.1.0
+cryptography  
