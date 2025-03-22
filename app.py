@@ -9,6 +9,7 @@ from google.cloud import translate_v2 as translate
 import logging
 import gc
 import ssl
+import pymysql
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
