@@ -30,35 +30,27 @@
         #recently-played {
             margin-top: 20px;
         }
-        .collapsible-table {
+        .tracks-table {
             width: 100%;
             border-collapse: collapse;
         }
-        .collapsible-table th, .collapsible-table td {
+        .tracks-table th, .tracks-table td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
-        .collapsible-table th {
+        .tracks-table th {
             background-color: #f2f2f2;
         }
-        .song-row {
-            cursor: pointer;
-        }
-        .song-row:nth-child(even) {
+        .tracks-table tr:nth-child(even) {
             background-color: #f9f9f9;
-        }
-        .song-row.expanded {
-            background-color: #e6f3ff;
         }
         .context-cell {
             max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            word-wrap: break-word;
         }
-        .song-row.expanded .context-cell {
-            white-space: normal;
+        .context-content {
+            margin-top: 8px;
         }
         .generate-context-btn {
             background-color: #4CAF50;
@@ -74,22 +66,22 @@
         }
     </style>
 </head>
-    <body>
-        <h1>wordNab</h1>
-        <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
-        <div id="recently-played"></div>
-        <button id="download-csv">Download Word Data (CSV)</button>
+<body>
+    <h1>wordNab</h1>
+    <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
+    <div id="recently-played"></div>
+    <button id="download-csv">Download Word Data (CSV)</button>
 
-        <script src="static/main.js"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const accessToken = getAccessTokenFromUrl();
-                if (accessToken) {
-                    fetchRecentlyPlayed(accessToken).then(tracks => {
-                        displayTracksAndWords(tracks, accessToken);
-                    });
-                }
-            });
-        </script>
-    </body>
+    <script src="static/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessToken = getAccessTokenFromUrl();
+            if (accessToken) {
+                fetchRecentlyPlayed(accessToken).then(tracks => {
+                    displayTracksAndWords(tracks, accessToken);
+                });
+            }
+        });
+    </script>
+</body>
 </html>
