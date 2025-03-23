@@ -49,6 +49,7 @@ class CommonFrenchWord(db.Model):
     __tablename__ = 'common_words_fr_freq20'
     id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(255), unique=True, nullable=False)
+    translation = db.Column(db.String(255))
     frequency_film = db.Column(db.Float)
     frequency_book = db.Column(db.Float)
     frequency_avg = db.Column(db.Float)
@@ -106,11 +107,11 @@ def match_words():
             return jsonify({'error': 'Lyrics are required'}), 400
 
         words = set(re.findall(r'\w+', lyrics.lower()))
-        matching_words = db.session.query(CommonFrenchWord.word).filter(
+        matching_words = db.session.query(CommonFrenchWord.word, CommonFrenchWord.translation).filter(
             CommonFrenchWord.word.in_(words)
         ).order_by(CommonFrenchWord.frequency_avg).limit(10).all()
-        
-        result = [word[0] for word in matching_words]
+
+        result = [{"word": word, "translation": translation} for word, translation in matching_words]
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error in match_words: {str(e)}", exc_info=True)
