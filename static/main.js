@@ -126,7 +126,7 @@ async function displayTracksAndWords(tracks, accessToken) {
     container.appendChild(header);
 
     const table = document.createElement('table');
-    table.className = 'collapsible-table';
+    table.className = 'tracks-table';
     const tableHeader = `
         <tr>
             <th>Song</th>
@@ -152,7 +152,6 @@ async function displayTracksAndWords(tracks, accessToken) {
                 const translation = typeof wordData === 'object' ? (wordData.translation || 'N/A') : 'N/A';
                 
                 const row = table.insertRow();
-                row.className = 'song-row';
                 row.innerHTML = `
                     <td>${songName} - ${artistName}</td>
                     <td>${word}</td>
@@ -194,13 +193,6 @@ async function displayTracksAndWords(tracks, accessToken) {
                         generateContextBtn.textContent = 'Generate Context';
                     }
                 };
-
-                row.addEventListener('click', (event) => {
-                    if (!event.target.classList.contains('generate-context-btn')) {
-                        row.classList.toggle('expanded');
-                        contextContent.style.display = contextContent.style.display === 'none' ? 'block' : 'none';
-                    }
-                });
             }
         }
     }
