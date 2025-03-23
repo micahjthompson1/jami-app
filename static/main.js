@@ -131,6 +131,7 @@ async function displayTracksAndWords(tracks, accessToken) {
         <tr>
             <th>Song</th>
             <th>Common Word</th>
+            <th>Translation</th>
             <th>Context</th>
         </tr>
     `;
@@ -146,12 +147,16 @@ async function displayTracksAndWords(tracks, accessToken) {
         if (lyrics) {
             const commonWords = await fetchCommonFrenchWords(lyrics);
 
-            for (const word of commonWords) {
+            for (const wordData of commonWords) {
+                const word = typeof wordData === 'object' ? wordData.word : wordData;
+                const translation = typeof wordData === 'object' ? (wordData.translation || 'N/A') : 'N/A';
+                
                 const row = table.insertRow();
                 row.className = 'song-row';
                 row.innerHTML = `
                     <td>${songName} - ${artistName}</td>
                     <td>${word}</td>
+                    <td>${translation}</td>
                     <td class="context-cell">
                         <button class="generate-context-btn">Generate Context</button>
                         <div class="context-content" style="display: none;"></div>
