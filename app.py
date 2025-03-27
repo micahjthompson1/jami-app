@@ -78,7 +78,11 @@ def process_context_generation(lyric: str) -> str:
         )
         
         translated_text = translation['translatedText']
-        
+
+        # Decode HTML entities in the translated text
+        import html
+        translated_text = html.unescape(translated_text)
+
         logger.info("Translation completed successfully")
         return f'This word is used in the lyric, "{lyric}", which translates to "{translated_text}" in English.'
     except Exception as e:
