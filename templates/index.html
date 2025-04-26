@@ -117,24 +117,9 @@
     <h1>wordNab</h1>
     <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
     <div id="recently-played">
-        <!-- Track selection UI will be inserted here -->
+        <!-- Track selection UI and table will be inserted here by JS -->
     </div>
-    
-    <table class="tracks-table">
-        <thead>
-            <tr>
-                <th>Track Name</th>
-                <th>Primary Language</th>
-                <th>Confidence</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Track rows will be added dynamically -->
-        </tbody>
-    </table>
-    
     <button id="download-csv">Download Word Data (CSV)</button>
-
     <script src="static/main.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
