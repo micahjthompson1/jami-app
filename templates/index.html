@@ -121,15 +121,5 @@
     </div>
     <button id="download-csv">Download Word Data (CSV)</button>
     <script src="static/main.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const accessToken = getAccessTokenFromUrl();
-            if (accessToken) {
-                fetchRecentlyPlayed(accessToken).then(tracks => {
-                    displayTracksAndWords(tracks, accessToken);
-                });
-            }
-        });
-    </script>
 </body>
 </html>
