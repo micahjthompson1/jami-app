@@ -130,7 +130,7 @@ def match_words():
         words = set(re.findall(r'\w+', lyrics.lower()))
         matching_words = db.session.query(CommonFrenchWord.word, CommonFrenchWord.translation).filter(
             CommonFrenchWord.word.in_(words)
-        ).order_by(CommonFrenchWord.frequency_avg).limit(10).all()
+        ).order_by(CommonFrenchWord.word)
 
         result = [{"word": word, "translation": translation} for word, translation in matching_words]
         return jsonify(result)
