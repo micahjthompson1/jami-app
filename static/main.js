@@ -20,7 +20,7 @@ function getAccessTokenFromUrl() {
 }
 
 async function fetchRecentlyPlayed(accessToken) {
-    const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=3', {
+    const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=10', {
         headers: {
             'Authorization': `Bearer ${accessToken}`,
         },
@@ -117,85 +117,96 @@ async function pollContextResult(taskId, maxAttempts = 60, interval = 10000) {
   throw new Error('Max polling attempts reached');
 }
 
-
 async function displayTracksAndWords(tracks, accessToken) {
     const container = document.getElementById('recently-played');
-    container.innerHTML = '';
-    const header = document.createElement('h2');
-    header.textContent = "Recently Played Tracks:";
-    container.appendChild(header);
+    container.innerHTML = '<h2>Select Tracks to Display</h2>';
+    
+    // Create track selection list
+    const selectionList = document.createElement('div');
+    selectionList.className = 'track-selection';
+    
+    // Create confirmation button
+    const addButton = document.createElement('button');
+    addButton.textContent = 'Add Selected to Table';
+    addButton.className = 'add-button';
+    
+    // Create loading indicator
+    const loading = document.createElement('div');
+    loading.className = 'loading';
+    loading.textContent = 'Detecting languages...';
+    container.appendChild(loading);
 
-    const table = document.createElement('table');
-    table.className = 'tracks-table';
-    const tableHeader = `
-        <tr>
-            <th>Song</th>
-            <th>Common Word</th>
-            <th>Translation</th>
-            <th>Context</th>
-        </tr>
-    `;
-    table.innerHTML = tableHeader;
-    container.appendChild(table);
+    // Process all tracks first
+    const trackPromises = tracks.map(async (item) => {
+        const lyrics = await fetchLyrics(item.track.artists[0].name, item.track.name);
+        if (!lyrics) return null;
+        
+        // Detect language using your existing translation service
+        const langResponse = await fetch('/api/detect-language', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ text: lyrics })
+        });
+        
+        const langData = await langResponse.json();
+        return {
+            track: item.track,
+            lyrics,
+            language: langData.language,
+            confidence: langData.confidence
+        };
+    });
 
-    for (const item of tracks) {
-        const track = item.track;
-        const songName = track.name;
-        const artistName = track.artists.map(artist => artist.name).join(', ');
+    const processedTracks = (await Promise.all(trackPromises)).filter(t => t);
+    loading.remove();
 
-        const lyrics = await fetchLyrics(artistName, songName);
-        if (lyrics) {
-            const commonWords = await fetchCommonFrenchWords(lyrics);
+    // Create track cards with selection
+    processedTracks.forEach(trackData => {
+        const trackCard = document.createElement('div');
+        trackCard.className = 'track-card';
+        trackCard.innerHTML = `
+            <label>
+                <input type="checkbox" class="track-checkbox">
+                <span class="track-name">${trackData.track.name}</span>
+                <span class="language-badge ${trackData.language}">${trackData.language.toUpperCase()}</span>
+                <span class="confidence">(${Math.round(trackData.confidence * 100)}%)</span>
+            </label>
+        `;
+        selectionList.appendChild(trackCard);
+    });
 
-            for (const wordData of commonWords) {
-                const word = typeof wordData === 'object' ? wordData.word : wordData;
-                const translation = typeof wordData === 'object' ? (wordData.translation || 'N/A') : 'N/A';
-                
-                const row = table.insertRow();
-                row.innerHTML = `
-                    <td>${songName} - ${artistName}</td>
-                    <td>${word}</td>
-                    <td>${translation}</td>
-                    <td class="context-cell">
-                        <button class="generate-context-btn">Generate Context</button>
-                        <div class="context-content" style="display: none;"></div>
-                    </td>
-                `;
+    container.appendChild(selectionList);
+    container.appendChild(addButton);
 
-                const generateContextBtn = row.querySelector('.generate-context-btn');
-                const contextContent = row.querySelector('.context-content');
-
-                generateContextBtn.onclick = async () => {
-                    try {
-                        generateContextBtn.disabled = true;
-                        generateContextBtn.textContent = 'Generating...';
-
-                        // Find the lyric containing the common word
-                        const lyricWithWord = lyrics.split('\n').find(line => line.toLowerCase().includes(word.toLowerCase()));
-
-                        if (lyricWithWord) {
-                            const taskId = await fetchContextForLyric(lyricWithWord);
-                            const context = await pollContextResult(taskId);
-                            contextContent.textContent = context;
-                            contextContent.style.display = 'block';
-                            generateContextBtn.style.display = 'none';
-                        } else {
-                            contextContent.textContent = 'Lyric containing the word not found.';
-                            contextContent.style.display = 'block';
-                            generateContextBtn.style.display = 'none';
-                        }
-                    } catch (error) {
-                        console.error('Error generating context:', error);
-                        contextContent.textContent = 'Error generating context';
-                        contextContent.style.display = 'block';
-                    } finally {
-                        generateContextBtn.disabled = false;
-                        generateContextBtn.textContent = 'Generate Context';
-                    }
+    // Handle add to table
+    addButton.addEventListener('click', () => {
+        const selectedTracks = Array.from(document.querySelectorAll('.track-checkbox:checked'))
+            .map(checkbox => {
+                const card = checkbox.closest('.track-card');
+                return {
+                    name: card.querySelector('.track-name').textContent,
+                    language: card.querySelector('.language-badge').textContent,
+                    confidence: card.querySelector('.confidence').textContent
                 };
-            }
-        }
-    }
+            });
+
+        updateTrackTable(selectedTracks);
+    });
+}
+
+function updateTrackTable(tracks) {
+    const table = document.querySelector('.tracks-table tbody');
+    table.innerHTML = '';
+    
+    tracks.forEach(track => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${track.name}</td>
+            <td><span class="language-badge ${track.language.toLowerCase()}">${track.language}</span></td>
+            <td>${track.confidence}</td>
+        `;
+        table.appendChild(row);
+    });
 }
 
 async function main() {
