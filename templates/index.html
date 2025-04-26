@@ -30,14 +30,64 @@
         #recently-played {
             margin-top: 20px;
         }
+        /* Track Selection UI */
+        .track-selection {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+        }
+        .track-card {
+            padding: 10px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+        }
+        .track-card:hover {
+            background: #e9ecef;
+        }
+        .language-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        .language-badge.fr { background: #c3e6cb; color: #155724; }
+        .language-badge.en { background: #ffeeba; color: #856404; }
+        .language-badge.es { background: #f5b7b1; color: #721c24; }
+        .add-button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        .add-button:hover {
+            background: #45a049;
+        }
+        .loading {
+            padding: 15px;
+            background: #fff3cd;
+            color: #856404;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        /* Track Table Styling */
         .tracks-table {
             width: 100%;
+            margin-top: 20px;
             border-collapse: collapse;
+            background: white;
         }
         .tracks-table th, .tracks-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
+            padding: 12px;
             text-align: left;
+            border-bottom: 1px solid #ddd;
         }
         .tracks-table th {
             background-color: #f2f2f2;
@@ -48,9 +98,6 @@
         .context-cell {
             max-width: 300px;
             word-wrap: break-word;
-        }
-        .context-content {
-            margin-top: 8px;
         }
         .generate-context-btn {
             background-color: #4CAF50;
@@ -69,7 +116,23 @@
 <body>
     <h1>wordNab</h1>
     <button onclick="window.location.href = getSpotifyAuthUrl()">Connect to Spotify</button>
-    <div id="recently-played"></div>
+    <div id="recently-played">
+        <!-- Track selection UI will be inserted here -->
+    </div>
+    
+    <table class="tracks-table">
+        <thead>
+            <tr>
+                <th>Track Name</th>
+                <th>Primary Language</th>
+                <th>Confidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Track rows will be added dynamically -->
+        </tbody>
+    </table>
+    
     <button id="download-csv">Download Word Data (CSV)</button>
 
     <script src="static/main.js"></script>
