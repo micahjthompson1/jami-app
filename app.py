@@ -89,6 +89,23 @@ def process_context_generation(lyric: str) -> str:
         logger.error(f"Error in translation: {str(e)}", exc_info=True)
         raise
 
+@app.route('/api/detect-language', methods=['POST'])
+def detect_language():
+    try:
+        text = request.json.get('text')
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+        
+        detection = translate_client.detect_language(text)
+        return jsonify({
+            'language': detection['language'],
+            'confidence': detection['confidence']
+        })
+    
+    except Exception as e:
+        logger.error(f"Error in language detection: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Language detection failed'}), 500
+
 @app.route('/proxy')
 def proxy():
     url = request.args.get('url')
