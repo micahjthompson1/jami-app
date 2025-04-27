@@ -212,7 +212,10 @@ async function displayTracksAndWords(tracks, accessToken) {
     `;
     container.appendChild(tableContainer);
     tableContainer.appendChild(table);
-    
+
+    // After appending all rows:
+    enableSwipeToDelete('tracks-table');
+
     // Handle "Add to Table" button click
     addButton.addEventListener('click', async () => {
         const selectedCheckboxes = document.querySelectorAll('.track-checkbox:checked');
@@ -288,6 +291,103 @@ async function displayTracksAndWords(tracks, accessToken) {
             }
         }
     });
+}
+
+function enableSwipeToDelete(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+
+  function bindSwipeEvents(row) {
+    let startX = 0;
+    let swiped = false;
+
+    // Touch events for mobile
+    row.addEventListener('touchstart', function(e) {
+      startX = e.touches[0].clientX;
+      this.classList.remove('delete-bg');
+      this.style.transition = '';
+    });
+
+    row.addEventListener('touchmove', function(e) {
+      const deltaX = e.touches[0].clientX - startX;
+      if (deltaX < -30) {
+        this.style.transform = `translateX(${deltaX}px)`;
+        if (Math.abs(deltaX) > 80) {
+          this.classList.add('delete-bg');
+          swiped = true;
+        } else {
+          this.classList.remove('delete-bg');
+          swiped = false;
+        }
+      }
+    });
+
+    row.addEventListener('touchend', function(e) {
+      if (swiped) {
+        this.style.transition = 'transform 0.3s, opacity 0.3s';
+        this.style.transform = 'translateX(-100%)';
+        this.style.opacity = '0';
+        setTimeout(() => {
+          this.remove();
+        }, 300);
+      } else {
+        this.style.transform = '';
+        this.classList.remove('delete-bg');
+      }
+      swiped = false;
+    });
+
+    // Mouse events for desktop
+    let mouseStartX = 0;
+    let mouseDown = false;
+    row.addEventListener('mousedown', function(e) {
+      mouseStartX = e.clientX;
+      mouseDown = true;
+      this.classList.remove('delete-bg');
+      this.style.transition = '';
+    });
+    row.addEventListener('mousemove', function(e) {
+      if (!mouseDown) return;
+      const deltaX = e.clientX - mouseStartX;
+      if (deltaX < -30) {
+        this.style.transform = `translateX(${deltaX}px)`;
+        if (Math.abs(deltaX) > 80) {
+          this.classList.add('delete-bg');
+          swiped = true;
+        } else {
+          this.classList.remove('delete-bg');
+          swiped = false;
+        }
+      }
+    });
+    row.addEventListener('mouseup', function(e) {
+      if (swiped) {
+        this.style.transition = 'transform 0.3s, opacity 0.3s';
+        this.style.transform = 'translateX(-100%)';
+        this.style.opacity = '0';
+        setTimeout(() => {
+          this.remove();
+        }, 300);
+      } else {
+        this.style.transform = '';
+        this.classList.remove('delete-bg');
+      }
+      mouseDown = false;
+      swiped = false;
+    });
+    row.addEventListener('mouseleave', function(e) {
+      if (!swiped) {
+        this.style.transform = '';
+        this.classList.remove('delete-bg');
+      }
+      mouseDown = false;
+    });
+  }
+
+  // Bind events to all rows
+  table.querySelectorAll('tbody tr').forEach(row => {
+    bindSwipeEvents(row);
+  });
 }
 
 async function main() {
