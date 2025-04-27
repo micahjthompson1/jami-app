@@ -201,6 +201,7 @@ async function displayTracksAndWords(tracks, accessToken) {
     tableContainer.id = 'tracks-table-container';
     
     const table = document.createElement('table');
+    table.id = 'tracks-table';
     table.className = 'tracks-table';
     table.innerHTML = `
         <tr>
