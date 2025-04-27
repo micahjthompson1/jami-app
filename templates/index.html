@@ -95,6 +95,31 @@
         .tracks-table tr:nth-child(even) {
             background-color: #f9f9f9;
         }
+        .tracks-table tbody tr {
+            position: relative;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            background: #fff;
+        }
+        .tracks-table tbody tr.swiping {
+            transition: none;
+        }
+        .tracks-table tbody tr.delete-bg::before {
+            content: 'Delete';
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 100px;
+            background: #ff5252;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 16px;
+            font-weight: bold;
+            z-index: 1;
+            pointer-events: none;
+         }
         .context-cell {
             max-width: 300px;
             word-wrap: break-word;
