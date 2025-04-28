@@ -120,6 +120,9 @@
             z-index: 1;
             pointer-events: none;
          }
+        .tracks-table tbody tr {
+            touch-action: pan-y; /* Critical for touch control */
+         }
         .context-cell {
             max-width: 300px;
             word-wrap: break-word;
