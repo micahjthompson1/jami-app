@@ -196,27 +196,31 @@ async function displayTracksAndWords(tracks, accessToken) {
     addButton.className = 'add-button';
     container.appendChild(addButton);
     
-    // Create the tracks table with original columns (only once)
+    // Create the tracks table with proper structure
     const tableContainer = document.createElement('div');
     tableContainer.id = 'tracks-table-container';
     
     const table = document.createElement('table');
     table.id = 'tracks-table';
     table.className = 'tracks-table';
+    
+    // Use proper thead and tbody structure
     table.innerHTML = `
-        <tr>
-            <th>Song</th>
-            <th>Common Word</th>
-            <th>Translation</th>
-            <th>Context</th>
-        </tr>
+        <thead>
+            <tr>
+                <th>Song</th>
+                <th>Common Word</th>
+                <th>Translation</th>
+                <th>Context</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
     `;
+    
     container.appendChild(tableContainer);
     tableContainer.appendChild(table);
-
-    // After appending all rows:
-    enableSwipeToDelete('tracks-table');
-
+    
     // Handle "Add to Table" button click
     addButton.addEventListener('click', async () => {
         const selectedCheckboxes = document.querySelectorAll('.track-checkbox:checked');
@@ -225,10 +229,11 @@ async function displayTracksAndWords(tracks, accessToken) {
             return;
         }
         
-        // Clear existing rows except header
-        while (table.rows.length > 1) {
-            table.deleteRow(1);
-        }
+        // Get a reference to the tbody
+        const tbody = table.querySelector('tbody');
+        
+        // Clear existing rows
+        tbody.innerHTML = '';
         
         // Process each selected track
         for (const checkbox of selectedCheckboxes) {
@@ -244,7 +249,8 @@ async function displayTracksAndWords(tracks, accessToken) {
                 const word = typeof wordData === 'object' ? wordData.word : wordData;
                 const translation = typeof wordData === 'object' ? (wordData.translation || 'N/A') : 'N/A';
                 
-                const row = table.insertRow();
+                // Create row and append to tbody directly
+                const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${trackData.songName} - ${trackData.artistName}</td>
                     <td>${word}</td>
@@ -254,6 +260,8 @@ async function displayTracksAndWords(tracks, accessToken) {
                         <div class="context-content" style="display: none;"></div>
                     </td>
                 `;
+                
+                tbody.appendChild(row);
                 
                 // Set up context generation functionality
                 const generateContextBtn = row.querySelector('.generate-context-btn');
@@ -291,6 +299,9 @@ async function displayTracksAndWords(tracks, accessToken) {
                 };
             }
         }
+        
+        // Apply swipe-to-delete AFTER rows are added
+        enableSwipeToDelete('tracks-table');
     });
 }
 
