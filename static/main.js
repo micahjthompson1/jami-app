@@ -121,16 +121,16 @@ async function displayTracksAndWords(tracks, accessToken) {
     // Clear the container
     const container = document.getElementById('recently-played');
     container.innerHTML = '';
-    
+
     // Create header
     const header = document.createElement('h2');
     header.textContent = "Select Tracks to Display";
     container.appendChild(header);
-    
+
     // Create track selection list
     const selectionList = document.createElement('div');
     selectionList.className = 'track-selection';
-    
+
     // Create loading indicator
     const loading = document.createElement('div');
     loading.className = 'loading';
@@ -139,27 +139,27 @@ async function displayTracksAndWords(tracks, accessToken) {
 
     // Store processed tracks for later use
     const processedTracks = [];
-    
+
     // Process all tracks for language detection
     for (const item of tracks) {
         const track = item.track;
         const songName = track.name;
         const artistName = track.artists.map(artist => artist.name).join(', ');
-        
+
         const lyrics = await fetchLyrics(artistName, songName);
         if (!lyrics) continue;
-        
+
         // Detect language
         const langResponse = await fetch('/api/detect-language', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ text: lyrics })
         });
-        
+
         if (!langResponse.ok) continue;
-        
+
         const langData = await langResponse.json();
-        
+
         // Store processed track data
         processedTracks.push({
             track,
@@ -169,12 +169,12 @@ async function displayTracksAndWords(tracks, accessToken) {
             language: langData.language,
             confidence: langData.confidence
         });
-        
+
         // Create track card
         const trackCard = document.createElement('div');
         trackCard.className = 'track-card';
         trackCard.dataset.index = processedTracks.length - 1;
-        
+
         trackCard.innerHTML = `
             <label>
                 <input type="checkbox" class="track-checkbox">
@@ -185,25 +185,25 @@ async function displayTracksAndWords(tracks, accessToken) {
         `;
         selectionList.appendChild(trackCard);
     }
-    
+
     // Remove loading indicator and add selection list
     loading.remove();
     container.appendChild(selectionList);
-    
+
     // Add button
     const addButton = document.createElement('button');
     addButton.textContent = 'Add Selected to Table';
     addButton.className = 'add-button';
     container.appendChild(addButton);
-    
+
     // Create the tracks table with proper structure
     const tableContainer = document.createElement('div');
     tableContainer.id = 'tracks-table-container';
-    
+
     const table = document.createElement('table');
     table.id = 'tracks-table';
     table.className = 'tracks-table';
-    
+
     // Use proper thead and tbody structure
     table.innerHTML = `
         <thead>
@@ -217,10 +217,10 @@ async function displayTracksAndWords(tracks, accessToken) {
         <tbody>
         </tbody>
     `;
-    
+
     container.appendChild(tableContainer);
     tableContainer.appendChild(table);
-    
+
     // Handle "Add to Table" button click
     addButton.addEventListener('click', async () => {
         const selectedCheckboxes = document.querySelectorAll('.track-checkbox:checked');
@@ -228,27 +228,27 @@ async function displayTracksAndWords(tracks, accessToken) {
             alert('Please select at least one track');
             return;
         }
-        
+
         // Get a reference to the tbody
         const tbody = table.querySelector('tbody');
-        
+
         // Clear existing rows
         tbody.innerHTML = '';
-        
+
         // Process each selected track
         for (const checkbox of selectedCheckboxes) {
             const trackCard = checkbox.closest('.track-card');
             const trackIndex = parseInt(trackCard.dataset.index);
             const trackData = processedTracks[trackIndex];
-            
+
             // Get common words for this track
             const commonWords = await fetchCommonFrenchWords(trackData.lyrics);
-            
+
             // Create a row for each common word found
             for (const wordData of commonWords) {
                 const word = typeof wordData === 'object' ? wordData.word : wordData;
                 const translation = typeof wordData === 'object' ? (wordData.translation || 'N/A') : 'N/A';
-                
+
                 // Create row and append to tbody directly
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -260,23 +260,23 @@ async function displayTracksAndWords(tracks, accessToken) {
                         <div class="context-content" style="display: none;"></div>
                     </td>
                 `;
-                
+
                 tbody.appendChild(row);
-                
+
                 // Set up context generation functionality
                 const generateContextBtn = row.querySelector('.generate-context-btn');
                 const contextContent = row.querySelector('.context-content');
-                
+
                 generateContextBtn.onclick = async () => {
                     try {
                         generateContextBtn.disabled = true;
                         generateContextBtn.textContent = 'Generating...';
-                        
+
                         // Find the lyric containing the common word
-                        const lyricWithWord = trackData.lyrics.split('\n').find(line => 
+                        const lyricWithWord = trackData.lyrics.split('\n').find(line =>
                             line.toLowerCase().includes(word.toLowerCase())
                         );
-                        
+
                         if (lyricWithWord) {
                             const taskId = await fetchContextForLyric(lyricWithWord);
                             const context = await pollContextResult(taskId);
@@ -299,109 +299,122 @@ async function displayTracksAndWords(tracks, accessToken) {
                 };
             }
         }
-        
+
         // Apply swipe-to-delete AFTER rows are added
         enableSwipeToDelete('tracks-table');
     });
 }
 
+// --- Swipe-to-delete function (delegation-based, robust) ---
+
 function enableSwipeToDelete(tableId) {
-  const table = document.getElementById(tableId);
-  if (!table) return;
+    const table = document.getElementById(tableId);
+    if (!table) return;
 
-  let startX = 0;
-  let currentRow = null;
-  let isSwiping = false;
+    let startX = 0;
+    let currentRow = null;
+    let isSwiping = false;
 
-  // Touch event handlers
-  table.addEventListener('touchstart', handleTouchStart, { passive: true });
-  table.addEventListener('touchmove', handleTouchMove, { passive: true });
-  table.addEventListener('touchend', handleTouchEnd);
+    // Touch event handlers
+    table.addEventListener('touchstart', handleTouchStart, { passive: true });
+    table.addEventListener('touchmove', handleTouchMove, { passive: true });
+    table.addEventListener('touchend', handleTouchEnd);
 
-  // Mouse event handlers
-  table.addEventListener('mousedown', handleMouseDown);
-  table.addEventListener('mousemove', handleMouseMove);
-  table.addEventListener('mouseup', handleMouseUp);
-  table.addEventListener('mouseleave', handleMouseLeave);
+    // Mouse event handlers
+    table.addEventListener('mousedown', handleMouseDown);
+    table.addEventListener('mousemove', handleMouseMove);
+    table.addEventListener('mouseup', handleMouseUp);
+    table.addEventListener('mouseleave', handleMouseLeave);
 
-  function handleTouchStart(e) {
-    if (e.touches.length > 1) return;
-    startX = e.touches[0].clientX;
-    currentRow = e.target.closest('tr');
-    if (currentRow) {
-      currentRow.style.transition = 'none';
-      isSwiping = true;
+    function handleTouchStart(e) {
+        if (e.touches.length > 1) return;
+        startX = e.touches[0].clientX;
+        currentRow = e.target.closest('tr');
+        if (currentRow && currentRow.parentElement.tagName === 'TBODY') {
+            currentRow.style.transition = 'none';
+            isSwiping = true;
+        } else {
+            currentRow = null;
+            isSwiping = false;
+        }
     }
-  }
 
-  function handleTouchMove(e) {
-    if (!currentRow || !isSwiping) return;
-    const deltaX = e.touches[0].clientX - startX;
-    updateRowPosition(deltaX);
-  }
-
-  function handleTouchEnd() {
-    if (!currentRow) return;
-    finalizeSwipe();
-    resetState();
-  }
-
-  function handleMouseDown(e) {
-    if (e.button !== 0) return; // Only left mouse button
-    startX = e.clientX;
-    currentRow = e.target.closest('tr');
-    if (currentRow) {
-      currentRow.style.transition = 'none';
-      isSwiping = true;
+    function handleTouchMove(e) {
+        if (!currentRow || !isSwiping) return;
+        const deltaX = e.touches[0].clientX - startX;
+        updateRowPosition(deltaX);
     }
-  }
 
-  function handleMouseMove(e) {
-    if (!currentRow || !isSwiping) return;
-    const deltaX = e.clientX - startX;
-    updateRowPosition(deltaX);
-  }
-
-  function handleMouseUp() {
-    if (!currentRow) return;
-    finalizeSwipe();
-    resetState();
-  }
-
-  function handleMouseLeave() {
-    if (!currentRow) return;
-    resetRowPosition();
-    resetState();
-  }
-
-  function updateRowPosition(deltaX) {
-    if (deltaX < -30) { // Only handle left swipes
-      currentRow.style.transform = `translateX(${deltaX}px)`;
-      currentRow.classList.toggle('delete-bg', Math.abs(deltaX) > 80);
+    function handleTouchEnd() {
+        if (!currentRow) return;
+        finalizeSwipe();
+        resetState();
     }
-  }
 
-  function finalizeSwipe() {
-    const finalDelta = parseInt(currentRow.style.transform.replace(/[^-\d.]/g, '') || 0);
-    if (Math.abs(finalDelta) > 80) {
-      currentRow.style.transition = 'transform 0.3s, opacity 0.3s';
-      currentRow.style.transform = 'translateX(-100%)';
-      currentRow.style.opacity = '0';
-      setTimeout(() => currentRow.remove(), 300);
-    } else {
-      resetRowPosition();
+    function handleMouseDown(e) {
+        if (e.button !== 0) return; // Only left mouse button
+        startX = e.clientX;
+        currentRow = e.target.closest('tr');
+        if (currentRow && currentRow.parentElement.tagName === 'TBODY') {
+            currentRow.style.transition = 'none';
+            isSwiping = true;
+        } else {
+            currentRow = null;
+            isSwiping = false;
+        }
     }
-  }
 
-  function resetRowPosition() {
-    currentRow.style.transform = '';
-    currentRow.classList.remove('delete-bg');
-  }
+    function handleMouseMove(e) {
+        if (!currentRow || !isSwiping) return;
+        const deltaX = e.clientX - startX;
+        updateRowPosition(deltaX);
+    }
 
-  function resetState() {
-    currentRow = null;
-    isSwiping = false;
-  }
+    function handleMouseUp() {
+        if (!currentRow) return;
+        finalizeSwipe();
+        resetState();
+    }
+
+    function handleMouseLeave() {
+        if (!currentRow) return;
+        resetRowPosition();
+        resetState();
+    }
+
+    function updateRowPosition(deltaX) {
+        if (deltaX < -30) { // Only handle left swipes
+            currentRow.style.transform = `translateX(${deltaX}px)`;
+            currentRow.classList.toggle('delete-bg', Math.abs(deltaX) > 80);
+        }
+    }
+
+    function finalizeSwipe() {
+        const match = currentRow.style.transform.match(/-?\d+/);
+        const finalDelta = match ? parseInt(match[0]) : 0;
+        if (Math.abs(finalDelta) > 80) {
+            currentRow.style.transition = 'transform 0.3s, opacity 0.3s';
+            currentRow.style.transform = 'translateX(-100%)';
+            currentRow.style.opacity = '0';
+            setTimeout(() => {
+                if (currentRow && currentRow.parentElement) currentRow.remove();
+            }, 300);
+        } else {
+            resetRowPosition();
+        }
+    }
+
+    function resetRowPosition() {
+        if (currentRow) {
+            currentRow.style.transform = '';
+            currentRow.classList.remove('delete-bg');
+        }
+    }
+
+    function resetState() {
+        currentRow = null;
+        isSwiping = false;
+    }
 }
 
 async function main() {
