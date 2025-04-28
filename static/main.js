@@ -298,97 +298,99 @@ function enableSwipeToDelete(tableId) {
   const table = document.getElementById(tableId);
   if (!table) return;
 
-  function bindSwipeEvents(row) {
-    let startX = 0;
-    let swiped = false;
+  let startX = 0;
+  let currentRow = null;
+  let isSwiping = false;
 
-    // Touch events for mobile
-    row.addEventListener('touchstart', function(e) {
-      startX = e.touches[0].clientX;
-      this.classList.remove('delete-bg');
-      this.style.transition = '';
-    });
+  // Touch event handlers
+  table.addEventListener('touchstart', handleTouchStart, { passive: true });
+  table.addEventListener('touchmove', handleTouchMove, { passive: true });
+  table.addEventListener('touchend', handleTouchEnd);
 
-    row.addEventListener('touchmove', function(e) {
-      const deltaX = e.touches[0].clientX - startX;
-      if (deltaX < -30) {
-        this.style.transform = `translateX(${deltaX}px)`;
-        if (Math.abs(deltaX) > 80) {
-          this.classList.add('delete-bg');
-          swiped = true;
-        } else {
-          this.classList.remove('delete-bg');
-          swiped = false;
-        }
-      }
-    });
+  // Mouse event handlers
+  table.addEventListener('mousedown', handleMouseDown);
+  table.addEventListener('mousemove', handleMouseMove);
+  table.addEventListener('mouseup', handleMouseUp);
+  table.addEventListener('mouseleave', handleMouseLeave);
 
-    row.addEventListener('touchend', function(e) {
-      if (swiped) {
-        this.style.transition = 'transform 0.3s, opacity 0.3s';
-        this.style.transform = 'translateX(-100%)';
-        this.style.opacity = '0';
-        setTimeout(() => {
-          this.remove();
-        }, 300);
-      } else {
-        this.style.transform = '';
-        this.classList.remove('delete-bg');
-      }
-      swiped = false;
-    });
-
-    // Mouse events for desktop
-    let mouseStartX = 0;
-    let mouseDown = false;
-    row.addEventListener('mousedown', function(e) {
-      mouseStartX = e.clientX;
-      mouseDown = true;
-      this.classList.remove('delete-bg');
-      this.style.transition = '';
-    });
-    row.addEventListener('mousemove', function(e) {
-      if (!mouseDown) return;
-      const deltaX = e.clientX - mouseStartX;
-      if (deltaX < -30) {
-        this.style.transform = `translateX(${deltaX}px)`;
-        if (Math.abs(deltaX) > 80) {
-          this.classList.add('delete-bg');
-          swiped = true;
-        } else {
-          this.classList.remove('delete-bg');
-          swiped = false;
-        }
-      }
-    });
-    row.addEventListener('mouseup', function(e) {
-      if (swiped) {
-        this.style.transition = 'transform 0.3s, opacity 0.3s';
-        this.style.transform = 'translateX(-100%)';
-        this.style.opacity = '0';
-        setTimeout(() => {
-          this.remove();
-        }, 300);
-      } else {
-        this.style.transform = '';
-        this.classList.remove('delete-bg');
-      }
-      mouseDown = false;
-      swiped = false;
-    });
-    row.addEventListener('mouseleave', function(e) {
-      if (!swiped) {
-        this.style.transform = '';
-        this.classList.remove('delete-bg');
-      }
-      mouseDown = false;
-    });
+  function handleTouchStart(e) {
+    if (e.touches.length > 1) return;
+    startX = e.touches[0].clientX;
+    currentRow = e.target.closest('tr');
+    if (currentRow) {
+      currentRow.style.transition = 'none';
+      isSwiping = true;
+    }
   }
 
-  // Bind events to all rows
-  table.querySelectorAll('tbody tr').forEach(row => {
-    bindSwipeEvents(row);
-  });
+  function handleTouchMove(e) {
+    if (!currentRow || !isSwiping) return;
+    const deltaX = e.touches[0].clientX - startX;
+    updateRowPosition(deltaX);
+  }
+
+  function handleTouchEnd() {
+    if (!currentRow) return;
+    finalizeSwipe();
+    resetState();
+  }
+
+  function handleMouseDown(e) {
+    if (e.button !== 0) return; // Only left mouse button
+    startX = e.clientX;
+    currentRow = e.target.closest('tr');
+    if (currentRow) {
+      currentRow.style.transition = 'none';
+      isSwiping = true;
+    }
+  }
+
+  function handleMouseMove(e) {
+    if (!currentRow || !isSwiping) return;
+    const deltaX = e.clientX - startX;
+    updateRowPosition(deltaX);
+  }
+
+  function handleMouseUp() {
+    if (!currentRow) return;
+    finalizeSwipe();
+    resetState();
+  }
+
+  function handleMouseLeave() {
+    if (!currentRow) return;
+    resetRowPosition();
+    resetState();
+  }
+
+  function updateRowPosition(deltaX) {
+    if (deltaX < -30) { // Only handle left swipes
+      currentRow.style.transform = `translateX(${deltaX}px)`;
+      currentRow.classList.toggle('delete-bg', Math.abs(deltaX) > 80);
+    }
+  }
+
+  function finalizeSwipe() {
+    const finalDelta = parseInt(currentRow.style.transform.replace(/[^-\d.]/g, '') || 0);
+    if (Math.abs(finalDelta) > 80) {
+      currentRow.style.transition = 'transform 0.3s, opacity 0.3s';
+      currentRow.style.transform = 'translateX(-100%)';
+      currentRow.style.opacity = '0';
+      setTimeout(() => currentRow.remove(), 300);
+    } else {
+      resetRowPosition();
+    }
+  }
+
+  function resetRowPosition() {
+    currentRow.style.transform = '';
+    currentRow.classList.remove('delete-bg');
+  }
+
+  function resetState() {
+    currentRow = null;
+    isSwiping = false;
+  }
 }
 
 async function main() {
