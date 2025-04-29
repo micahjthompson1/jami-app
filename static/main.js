@@ -393,9 +393,11 @@ function enableSwipeToDelete(tableId) {
         const match = currentRow.style.transform.match(/-?\d+/);
         const finalDelta = match ? parseInt(match[0]) : 0;
         if (Math.abs(finalDelta) > 80) {
+            currentRow.classList.add('deleting'); 
             currentRow.style.transition = 'transform 0.3s, opacity 0.3s';
             currentRow.style.transform = 'translateX(-100%)';
             currentRow.style.opacity = '0';
+            currentRow.style.height = '0'; 
             setTimeout(() => {
                 if (currentRow && currentRow.parentElement) currentRow.remove();
             }, 300);
