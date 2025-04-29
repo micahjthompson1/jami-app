@@ -83,6 +83,8 @@
             margin-top: 20px;
             border-collapse: collapse;
             background: white;
+            position: relative; 
+            overflow: hidden; 
         }
         .tracks-table th, .tracks-table td {
             padding: 12px;
@@ -99,6 +101,15 @@
             position: relative;
             transition: transform 0.3s ease, opacity 0.3s ease;
             background: #fff;
+            overflow: hidden;
+        }
+        .tracks-table tbody tr.deleting {
+            position: absolute;
+            left: 0;
+            right: 0;
+            opacity: 0;
+            height: 0;
+            transition: all 0.3s ease;
         }
         .tracks-table tbody tr.swiping {
             transition: none;
@@ -106,7 +117,7 @@
         .tracks-table tbody tr.delete-bg::before {
             content: 'Delete';
             position: absolute;
-            right: 0;
+            right: -100px;
             top: 0;
             height: 100%;
             width: 100px;
@@ -119,10 +130,14 @@
             font-weight: bold;
             z-index: 1;
             pointer-events: none;
-         }
+            transition: right 0.3s ease;
+        }
+        .tracks-table tbody tr.delete-bg::before {
+            right: 0; /* Animate to 0 when active */
+        }
         .tracks-table tbody tr {
             touch-action: pan-y; /* Critical for touch control */
-         }
+        }
         .context-cell {
             max-width: 300px;
             word-wrap: break-word;
