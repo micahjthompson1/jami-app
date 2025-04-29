@@ -451,6 +451,7 @@ document.getElementById('download-csv').addEventListener('click', function() {
     // Add data rows
     const bodyRows = table.querySelectorAll('tbody tr');
     bodyRows.forEach(row => {
+        if (row.style.display === 'none') return; // Skip hidden rows
         const cells = row.querySelectorAll('td');
         // Defensive: skip if row has fewer cells than expected
         if (cells.length <= Math.max(commonWordIdx, translationIdx)) return;
