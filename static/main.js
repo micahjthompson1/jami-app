@@ -419,6 +419,60 @@ function enableSwipeToDelete(tableId) {
     }
 }
 
+document.getElementById('download-csv').addEventListener('click', function() {
+    // Get the table
+    const table = document.getElementById('tracks-table');
+    if (!table) {
+        alert('No table found!');
+        return;
+    }
+
+    // Find the indices for "Common Word" and "Translation" columns
+    const headerCells = table.querySelectorAll('thead tr th');
+    let commonWordIdx = -1;
+    let translationIdx = -1;
+    headerCells.forEach((cell, idx) => {
+        const text = cell.innerText.trim().toLowerCase();
+        if (text === 'common word') commonWordIdx = idx;
+        if (text === 'translation') translationIdx = idx;
+    });
+
+    if (commonWordIdx === -1 || translationIdx === -1) {
+        alert('Required columns not found!');
+        return;
+    }
+
+    // Build CSV rows
+    const csvRows = [];
+
+    // Add header
+    csvRows.push('"Common Word","Translation"');
+
+    // Add data rows
+    const bodyRows = table.querySelectorAll('tbody tr');
+    bodyRows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        // Defensive: skip if row has fewer cells than expected
+        if (cells.length <= Math.max(commonWordIdx, translationIdx)) return;
+        const commonWord = cells[commonWordIdx].innerText.replace(/"/g, '""');
+        const translation = cells[translationIdx].innerText.replace(/"/g, '""');
+        csvRows.push(`"${commonWord}","${translation}"`);
+    });
+
+    // Create CSV file and trigger download
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'word-data.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
+
 async function main() {
     let accessToken = getAccessTokenFromUrl();
     if (!accessToken) {
