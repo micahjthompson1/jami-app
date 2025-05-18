@@ -147,25 +147,33 @@ async function displayTracksAndWords(tracks, accessToken) {
         const artistName = track.artists.map(artist => artist.name).join(', ');
 
         const lyrics = await fetchLyrics(artistName, songName);
-        if (!lyrics) continue;
+        // Remove the if(!lyrics) continue line to process all tracks
+        
+        let langData = { language: 'unknown', confidence: 0 };
+        
+        // Only detect language if lyrics are available
+        if (lyrics) {
+            try {
+                const langResponse = await fetch('/api/detect-language', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: lyrics })
+                });
+                
+                if (langResponse.ok) {
+                    langData = await langResponse.json();
+                }
+            } catch (error) {
+                console.error('Error detecting language:', error);
+            }
+        }
 
-        // Detect language
-        const langResponse = await fetch('/api/detect-language', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ text: lyrics })
-        });
-
-        if (!langResponse.ok) continue;
-
-        const langData = await langResponse.json();
-
-        // Store processed track data
+        // Store processed track data (even without lyrics)
         processedTracks.push({
             track,
             artistName,
             songName,
-            lyrics,
+            lyrics: lyrics || null,
             language: langData.language,
             confidence: langData.confidence
         });
@@ -175,12 +183,17 @@ async function displayTracksAndWords(tracks, accessToken) {
         trackCard.className = 'track-card';
         trackCard.dataset.index = processedTracks.length - 1;
 
+        // Add a visual indicator for tracks without lyrics
+        const languageDisplay = lyrics ? 
+            `<span class="language-badge ${langData.language}">${langData.language.toUpperCase()}</span>
+             <span class="confidence">(${Math.round(langData.confidence * 100)}%)</span>` : 
+            '<span class="no-lyrics-badge">No lyrics found</span>';
+
         trackCard.innerHTML = `
             <label>
                 <input type="checkbox" class="track-checkbox">
                 <span class="track-name">${songName} - ${artistName}</span>
-                <span class="language-badge ${langData.language}">${langData.language.toUpperCase()}</span>
-                <span class="confidence">(${Math.round(langData.confidence * 100)}%)</span>
+                ${languageDisplay}
             </label>
         `;
         selectionList.appendChild(trackCard);
@@ -241,8 +254,30 @@ async function displayTracksAndWords(tracks, accessToken) {
             const trackIndex = parseInt(trackCard.dataset.index);
             const trackData = processedTracks[trackIndex];
 
+            if (!trackData.lyrics) {
+                // Create a row for tracks without lyrics
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${trackData.songName} - ${trackData.artistName}</td>
+                    <td colspan="3" class="no-lyrics-cell">No lyrics available for this track</td>
+                `;
+                tbody.appendChild(row);
+                continue;
+            }
+
             // Get common words for this track
             const commonWords = await fetchCommonFrenchWords(trackData.lyrics);
+
+            // If no common words found, still show the track
+            if (commonWords.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${trackData.songName} - ${trackData.artistName}</td>
+                    <td colspan="3">No common words found in lyrics</td>
+                `;
+                tbody.appendChild(row);
+                continue;
+            }
 
             // Create a row for each common word found
             for (const wordData of commonWords) {
