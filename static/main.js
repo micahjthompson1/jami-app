@@ -144,7 +144,7 @@ async function displayTracksAndWords(tracks, accessToken) {
     for (const item of tracks) {
         const track = item.track;
         const songName = track.name;
-        const artistName = track.artists.map(artist => artist.name).join(', ');
+        const artistName = track.artists[0]?.name || '';
 
         const lyrics = await fetchLyrics(artistName, songName);
         // Remove the if(!lyrics) continue line to process all tracks
